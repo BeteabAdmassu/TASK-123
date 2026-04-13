@@ -1,0 +1,10 @@
+{
+    "prompt": "PASTE THE ORIGINAL PROMPT HERE BEFORE STARTING",
+    "project_type": "fullstack",
+    "model": "claude",
+    "frontend_language": "",
+    "backend_language": "",
+    "frontend_framework": "",
+    "backend_framework": "",
+    "database": ""
+}

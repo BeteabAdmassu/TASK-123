@@ -1,0 +1,11 @@
+.scratch/
+node_modules/
+__pycache__/
+.env
+*.pyc
+.DS_Store
+dist/
+build/
+coverage/
+.venv/
+venv/
