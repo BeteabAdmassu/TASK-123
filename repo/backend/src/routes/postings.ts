@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { PostingStatus } from '../models';
+import { checkProjectAccess, checkPostingAccess } from '../services/project-access';
 
 const createPostingSchema = {
   body: {
@@ -99,6 +100,12 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
           return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
         }
 
+        // Object-level auth on parent project
+        const access = await checkProjectAccess(fastify.db, projectId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
+
         const countResult = await fastify.db.query(
           'SELECT COUNT(*) AS total FROM job_postings WHERE project_id = $1 AND archived_at IS NULL',
           [projectId],
@@ -176,7 +183,7 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
     },
   );
 
-  // GET /api/postings/:id - get posting detail
+  // GET /api/postings/:id - get posting detail (object-level auth)
   fastify.get(
     '/api/postings/:id',
     {
@@ -198,6 +205,11 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
 
         if (result.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Posting not found' });
+        }
+
+        const access = await checkPostingAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         return reply.status(200).send(result.rows[0]);
@@ -231,6 +243,12 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
 
         if (existing.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Posting not found' });
+        }
+
+        // Object-level auth via parent project
+        const access = await checkPostingAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         const setClauses: string[] = [];

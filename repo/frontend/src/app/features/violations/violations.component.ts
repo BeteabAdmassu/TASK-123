@@ -5,6 +5,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ApiService, PaginatedResponse } from '../../core/services/api.service';
+import { AuthService } from '../../core/auth/auth.service';
 
 interface Violation {
   id: string;
@@ -54,6 +55,7 @@ export class ViolationsComponent implements OnInit, OnDestroy {
 
   constructor(
     private api: ApiService,
+    private auth: AuthService,
     private fb: FormBuilder,
     private snackBar: MatSnackBar
   ) {}
@@ -120,15 +122,23 @@ export class ViolationsComponent implements OnInit, OnDestroy {
   }
 
   loadAuditTrail(violationId: string): void {
+    // /audit is admin-only — skip for non-admin roles to avoid 403
+    const user = this.auth.getCurrentUserValue();
+    if (user?.role !== 'admin') {
+      this.auditTrail = [];
+      this.auditLoading = false;
+      return;
+    }
+
     this.auditLoading = true;
     this.api.get<{ data: AuditEntry[] }>('/audit', {
+      entity_type: 'violation_instance',
+      entity_id: violationId,
       page: 1,
       pageSize: 50
     }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
-        this.auditTrail = (res.data || []).filter(a =>
-          a.metadata?.['entity_id'] === violationId || a.metadata?.['violation_id'] === violationId
-        );
+        this.auditTrail = res.data || [];
         this.auditLoading = false;
       },
       error: () => {

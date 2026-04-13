@@ -94,6 +94,81 @@ export class AppComponent implements OnInit, OnDestroy {
       .subscribe(() => {
         this.nextRecord$.next(this.nextRecord$.value + 1);
       });
+
+    // Wire Electron preload bridge channels (no-op in browser-only mode)
+    this.initElectronBridge();
+  }
+
+  /** Subscribe to Electron preload IPC channels when running inside Electron. */
+  private initElectronBridge(): void {
+    const electronAPI = (window as Record<string, unknown>)['electronAPI'] as Record<string, unknown> | undefined;
+    if (!electronAPI) return; // Not running in Electron — browser-only safe fallback
+
+    // Shortcuts from main process
+    const shortcuts = electronAPI['shortcuts'] as {
+      onSearch?: (cb: () => void) => void;
+      onSave?: (cb: () => void) => void;
+      onNextRecord?: (cb: () => void) => void;
+    } | undefined;
+    if (shortcuts) {
+      if (shortcuts.onSearch) {
+        shortcuts.onSearch(() => this.onSearchOpen());
+      }
+      if (shortcuts.onSave) {
+        // Dispatch a synthetic Ctrl+Enter keydown so Angular form handlers respond
+        shortcuts.onSave(() => {
+          const activeEl = document.activeElement as HTMLElement | null;
+          if (activeEl) {
+            activeEl.dispatchEvent(new KeyboardEvent('keydown', {
+              key: 'Enter', code: 'Enter', ctrlKey: true, bubbles: true
+            }));
+          }
+        });
+      }
+      if (shortcuts.onNextRecord) {
+        shortcuts.onNextRecord(() => this.nextRecord$.next(this.nextRecord$.value + 1));
+      }
+    }
+
+    // Navigation from main process menu items
+    const navigation = electronAPI['navigation'] as {
+      onNavigate?: (cb: (route: string) => void) => void;
+    } | undefined;
+    if (navigation?.onNavigate) {
+      navigation.onNavigate((route: string) => this.router.navigate([route]));
+    }
+
+    // Context-menu action results from main process — route to current view
+    const contextMenu = electronAPI['contextMenu'] as {
+      onAction?: (cb: (action: string, payload: unknown) => void) => void;
+    } | undefined;
+    if (contextMenu?.onAction) {
+      contextMenu.onAction((action: string, payload: unknown) => {
+        const data = (payload || {}) as Record<string, string>;
+        switch (action) {
+          case 'tag-candidate':
+            if (data['candidateId']) {
+              this.router.navigate(['/candidates', data['candidateId']],
+                { queryParams: { action: 'tag' } });
+            }
+            break;
+          case 'request-materials':
+            if (data['candidateId']) {
+              this.router.navigate(['/candidates', data['candidateId']],
+                { queryParams: { action: 'request-materials' } });
+            }
+            break;
+          case 'create-approval':
+            if (data['candidateId']) {
+              this.router.navigate(['/candidates', data['candidateId']],
+                { queryParams: { action: 'create-approval' } });
+            }
+            break;
+          default:
+            break;
+        }
+      });
+    }
   }
 
   ngOnDestroy(): void {

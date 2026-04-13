@@ -70,27 +70,35 @@ export default async function searchRoutes(fastify: FastifyInstance): Promise<vo
                ORDER BY title ASC LIMIT 10`,
               [searchTerm, userId]);
 
-        // Search job postings by title
-        const postingsResult = await fastify.db.query(
-          `SELECT id, title, status
-           FROM job_postings
-           WHERE title ILIKE $1
-             AND archived_at IS NULL
-           ORDER BY title ASC
-           LIMIT 10`,
-          [searchTerm],
-        );
+        // Search job postings — scoped by project ownership for non-privileged users
+        const postingsResult = isPrivileged
+          ? await fastify.db.query(
+              `SELECT id, title, status FROM job_postings
+               WHERE title ILIKE $1 AND archived_at IS NULL
+               ORDER BY title ASC LIMIT 10`,
+              [searchTerm])
+          : await fastify.db.query(
+              `SELECT jp.id, jp.title, jp.status FROM job_postings jp
+               JOIN recruiting_projects rp ON rp.id = jp.project_id
+               WHERE jp.title ILIKE $1 AND jp.archived_at IS NULL AND rp.created_by = $2
+               ORDER BY jp.title ASC LIMIT 10`,
+              [searchTerm, userId]);
 
-        // Search services by name
-        const servicesResult = await fastify.db.query(
-          `SELECT id, name, status
-           FROM service_specifications
-           WHERE name ILIKE $1
-             AND archived_at IS NULL
-           ORDER BY name ASC
-           LIMIT 10`,
-          [searchTerm],
-        );
+        // Search services — intentionally broader than recruiting scoping.
+        // The service catalog is a shared organizational resource visible to all users.
+        // Admin/reviewer: all statuses (including draft/retired for management).
+        // Non-privileged: only active/paused (the public operational catalog).
+        const servicesResult = isPrivileged
+          ? await fastify.db.query(
+              `SELECT id, name, status FROM service_specifications
+               WHERE name ILIKE $1 AND archived_at IS NULL
+               ORDER BY name ASC LIMIT 10`,
+              [searchTerm])
+          : await fastify.db.query(
+              `SELECT id, name, status FROM service_specifications
+               WHERE name ILIKE $1 AND archived_at IS NULL AND status IN ('active', 'paused')
+               ORDER BY name ASC LIMIT 10`,
+              [searchTerm]);
 
         return reply.status(200).send({
           query: q,

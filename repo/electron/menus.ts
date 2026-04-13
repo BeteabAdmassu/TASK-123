@@ -156,9 +156,9 @@ export function buildAppMenu(): void {
           click: () => sendToFocusedRenderer('shortcut:save'),
         },
         {
-          label: 'Toggle Notifications',
+          label: 'Next Record',
           accelerator: 'Alt+N',
-          click: () => sendToFocusedRenderer('shortcut:notifications'),
+          click: () => sendToFocusedRenderer('shortcut:next-record'),
         },
       ],
     },
@@ -295,7 +295,7 @@ export function showApprovalContextMenu(
  * These mirror the keyboard shortcuts in the Angular KeyboardService:
  *   Ctrl+K  — Open search dialog
  *   Ctrl+Enter — Save / Submit current form
- *   Alt+N   — Toggle notification panel
+ *   Alt+N   — Next record (navigate to next item in current list context)
  *
  * Called once from main.ts after app.whenReady().
  */
@@ -309,7 +309,7 @@ export function registerGlobalShortcuts(): void {
   });
 
   globalShortcut.register('Alt+N', () => {
-    sendToFocusedRenderer('shortcut:notifications');
+    sendToFocusedRenderer('shortcut:next-record');
   });
 }
 

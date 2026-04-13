@@ -94,6 +94,9 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
     { label: 'Copy structured fields', action: () => this.copyStructuredFields() }
   ];
 
+  /** Queued action from Electron context-menu query param (executed once candidate loads). */
+  private pendingAction: string | null = null;
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -108,6 +111,21 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.passwordForm = this.fb.group({
       password: ['', Validators.required]
+    });
+
+    // Capture Electron context-menu action from query params (e.g. ?action=tag)
+    this.route.queryParams.pipe(takeUntil(this.destroy$)).subscribe(qp => {
+      const action = qp['action'];
+      if (action) {
+        this.pendingAction = action;
+        // Clear the query param immediately to prevent replay on refresh
+        this.router.navigate([], {
+          relativeTo: this.route,
+          queryParams: { action: null },
+          queryParamsHandling: 'merge',
+          replaceUrl: true
+        });
+      }
     });
 
     this.route.params.pipe(takeUntil(this.destroy$)).subscribe(params => {
@@ -134,6 +152,7 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
       next: (candidate) => {
         this.candidate = candidate;
         this.isLoading = false;
+        this.executePendingAction();
       },
       error: (err) => {
         this.errorMessage = err.status === 404
@@ -142,6 +161,27 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
         this.isLoading = false;
       }
     });
+  }
+
+  /** Execute a queued action from Electron context-menu query params, then clear it. */
+  private executePendingAction(): void {
+    if (!this.pendingAction || !this.candidate) return;
+    const action = this.pendingAction;
+    this.pendingAction = null; // consume once — prevent re-execution
+
+    switch (action) {
+      case 'tag':
+        this.onTagCandidate();
+        break;
+      case 'request-materials':
+        this.onRequestMissingMaterials();
+        break;
+      case 'create-approval':
+        this.onCreateApprovalTask();
+        break;
+      default:
+        break;
+    }
   }
 
   loadAttachments(): void {
@@ -169,6 +209,15 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
   }
 
   loadViolations(): void {
+    // /violations is reviewer/admin-only — skip for ineligible roles
+    const user = this.auth.getCurrentUserValue();
+    const canViewViolations = user?.role === 'admin' || user?.role === 'reviewer';
+    if (!canViewViolations) {
+      this.violations = [];
+      this.violationsLoading = false;
+      return;
+    }
+
     this.violationsLoading = true;
     this.api.get<PaginatedResponse<Violation>>('/violations', {
       page: 1, pageSize: 100

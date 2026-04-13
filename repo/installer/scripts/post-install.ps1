@@ -22,15 +22,20 @@ $ErrorActionPreference = 'Stop'
 # Paths
 # ---------------------------------------------------------------------------
 
-$InstallDir       = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$PgSetupExe       = Join-Path $InstallDir 'resources\postgresql\postgresql-16-setup.exe'
+# $PSScriptRoot = <install>/resources/installer/scripts
+# Two levels up = <install>/resources (the extraResources root)
+$ResourcesDir     = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$InstallDir       = Split-Path -Parent $ResourcesDir
+$PgSetupExe       = Join-Path $ResourcesDir 'postgresql\postgresql-16-setup.exe'
 $PgDataDir        = Join-Path $env:ProgramData 'TalentOps\pgdata'
 $PgBinDir         = Join-Path $env:ProgramFiles 'PostgreSQL\16\bin'
 $PgPort           = 5433
 $DbName           = 'talentops'
 $DbUser           = 'talentops'
 $DbPassword       = 'talentops_local'
-$BackendDir       = Join-Path $InstallDir 'resources\backend'
+# electron-builder maps ../backend/dist → resources/backend
+# tsc rootDir=".." produces dist/backend/src/... and dist/shared/...
+$BackendDir       = Join-Path $ResourcesDir 'backend'
 $MigrationScript  = Join-Path $BackendDir 'backend\src\migrations\run.js'
 $SeedScript       = Join-Path $BackendDir 'backend\src\migrations\seed.js'
 $AppExe           = Join-Path $InstallDir 'TalentOps.exe'

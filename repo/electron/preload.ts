@@ -71,8 +71,8 @@ interface ShortcutApi {
   onSearch(callback: () => void): void;
   /** Subscribe to the Ctrl+Enter (save/submit) shortcut */
   onSave(callback: () => void): void;
-  /** Subscribe to the Alt+N (notifications) shortcut */
-  onNotifications(callback: () => void): void;
+  /** Subscribe to the Alt+N (next record) shortcut */
+  onNextRecord(callback: () => void): void;
 }
 
 interface ConfigApi {
@@ -232,8 +232,8 @@ const electronBridge: ElectronBridgeApi = {
     onSave(callback: () => void) {
       ipcRenderer.on('shortcut:save', () => callback());
     },
-    onNotifications(callback: () => void) {
-      ipcRenderer.on('shortcut:notifications', () => callback());
+    onNextRecord(callback: () => void) {
+      ipcRenderer.on('shortcut:next-record', () => callback());
     },
   },
 

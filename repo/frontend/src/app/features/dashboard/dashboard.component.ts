@@ -63,6 +63,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
 
+    // Only admins can access /audit — all other roles skip it gracefully
+    const user = this.auth.getCurrentUserValue();
+    const isAdmin = user?.role === 'admin';
+    const isReviewer = user?.role === 'reviewer';
+
     forkJoin({
       approvals: this.api.get<{ total: number }>('/approvals', { page: 1, pageSize: 1, status: 'pending' }).pipe(
         catchError(() => of({ total: 0 }))
@@ -70,15 +75,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
       projects: this.api.get<{ total: number }>('/projects', { page: 1, pageSize: 1, status: 'active' }).pipe(
         catchError(() => of({ total: 0 }))
       ),
-      violations: this.api.get<{ total: number }>('/violations', { page: 1, pageSize: 1, status: 'pending' }).pipe(
-        catchError(() => of({ total: 0 }))
-      ),
+      violations: (isAdmin || isReviewer)
+        ? this.api.get<{ total: number }>('/violations', { page: 1, pageSize: 1, status: 'pending' }).pipe(
+            catchError(() => of({ total: 0 }))
+          )
+        : of({ total: 0 }),
       notifications: this.api.get<{ total: number }>('/notifications', { page: 1, pageSize: 1 }).pipe(
         catchError(() => of({ total: 0 }))
       ),
-      activity: this.api.get<{ data: RecentActivity[] }>('/audit', { page: 1, pageSize: 10 }).pipe(
-        catchError(() => of({ data: [] }))
-      )
+      activity: isAdmin
+        ? this.api.get<{ data: RecentActivity[] }>('/audit', { page: 1, pageSize: 10 }).pipe(
+            catchError(() => of({ data: [] as RecentActivity[] }))
+          )
+        : of({ data: [] as RecentActivity[] })
     }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (results) => {
         this.stats = {

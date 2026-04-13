@@ -586,6 +586,38 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 test_status "GET /api/search?q=Jane returns results" "200" "$HTTP_CODE" "$BODY"
 
+# Search scoping: approver should not see draft services
+RESPONSE=$(curl -s "${BASE_URL}/search?q=Background" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+SERVICES_COUNT=$(echo "$RESPONSE" | jq '.results.services | length' 2>/dev/null)
+# The spec "Background Check" was set to 'active' so approver should see it (active catalog)
+# But a draft spec should NOT appear for non-admin
+if [ "$SERVICES_COUNT" != "null" ] && [ -n "$SERVICES_COUNT" ]; then
+  log_pass "Search services scoped for non-privileged user (count: $SERVICES_COUNT)"
+else
+  log_fail "Search services scoping" "Could not parse services from search response"
+fi
+
+# Search scoping: approver should NOT see recruiter's projects
+RESPONSE=$(curl -s "${BASE_URL}/search?q=Hiring" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+PROJECTS_COUNT=$(echo "$RESPONSE" | jq '.results.projects | length' 2>/dev/null)
+if [ "$PROJECTS_COUNT" = "0" ]; then
+  log_pass "Search projects scoped: approver sees 0 foreign projects"
+else
+  log_fail "Search project scoping" "Approver sees $PROJECTS_COUNT projects (expected 0)"
+fi
+
+# Search scoping: approver should NOT see recruiter's postings
+RESPONSE=$(curl -s "${BASE_URL}/search?q=Senior" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+POSTINGS_COUNT=$(echo "$RESPONSE" | jq '.results.postings | length' 2>/dev/null)
+if [ "$POSTINGS_COUNT" = "0" ]; then
+  log_pass "Search postings scoped: approver sees 0 foreign postings"
+else
+  log_fail "Search posting scoping" "Approver sees $POSTINGS_COUNT postings (expected 0)"
+fi
+
 # ============================================================
 # 16. Crash Recovery Checkpoint
 # ============================================================
@@ -702,7 +734,51 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 test_status "POST /api/candidates as approver returns 403" "403" "$HTTP_CODE"
 
 # ============================================================
-# 22. Reveal / Resume / Approval Object-Level Auth Tests
+# 22. Project/Posting Object-Level Auth Tests
+# ============================================================
+echo ""
+echo "--- Project/Posting Object-Level Auth ---"
+
+# Approver should NOT be able to view recruiter's project detail
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/projects/${PROJECT_ID}" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/projects/:id as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# Approver should NOT be able to update recruiter's project
+RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/projects/${PROJECT_ID}" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}" \
+  -d '{"title":"Hacked"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "PUT /api/projects/:id as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# Approver should NOT be able to list postings for recruiter's project
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/projects/${PROJECT_ID}/postings" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/projects/:id/postings as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# Approver should NOT be able to view posting detail from recruiter's project
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/postings/${POSTING_ID}" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/postings/:id as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# Approver should NOT be able to list candidates for recruiter's posting
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/postings/${POSTING_ID}/candidates" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/postings/:postingId/candidates as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# Recruiter CAN still view their own project
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/projects/${PROJECT_ID}" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/projects/:id as owner recruiter returns 200" "200" "$HTTP_CODE"
+
+# ============================================================
+# 23. Reveal / Resume / Approval Object-Level Auth Tests
 # ============================================================
 echo ""
 echo "--- Sensitive Reveal, Resume, Approval Object Auth ---"

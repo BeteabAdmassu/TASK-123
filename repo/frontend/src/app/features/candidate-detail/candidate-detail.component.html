@@ -217,6 +217,19 @@
   <!-- Context Menu -->
   <div class="context-menu" *ngIf="showContextMenu"
        [style.left.px]="contextMenuX" [style.top.px]="contextMenuY">
+    <button mat-menu-item (click)="onTagCandidate()">
+      <mat-icon>label</mat-icon> Tag candidate
+    </button>
+    <button mat-menu-item (click)="onRequestMissingMaterials()">
+      <mat-icon>assignment_late</mat-icon> Request missing materials
+    </button>
+    <button mat-menu-item (click)="onCreateApprovalTask()">
+      <mat-icon>approval</mat-icon> Create approval task
+    </button>
+    <mat-divider></mat-divider>
+    <button mat-menu-item (click)="copyStructuredFields()">
+      <mat-icon>content_copy</mat-icon> Copy structured fields
+    </button>
     <button mat-menu-item (click)="loadCandidate(); closeContextMenu()">
       <mat-icon>refresh</mat-icon> Refresh
     </button>

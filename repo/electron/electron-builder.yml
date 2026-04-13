@@ -19,6 +19,10 @@ extraResources:
     to: frontend
     filter:
       - "**/*"
+  - from: ../installer/scripts
+    to: installer/scripts
+    filter:
+      - "**/*"
 
 win:
   target:

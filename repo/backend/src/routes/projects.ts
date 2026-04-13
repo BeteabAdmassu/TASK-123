@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { ProjectStatus } from '../models';
+import { checkProjectAccess } from '../services/project-access';
 
 const createProjectSchema = {
   body: {
@@ -160,7 +161,7 @@ export default async function projectRoutes(fastify: FastifyInstance): Promise<v
     },
   );
 
-  // GET /api/projects/:id - get project detail
+  // GET /api/projects/:id - get project detail (object-level auth)
   fastify.get(
     '/api/projects/:id',
     {
@@ -182,6 +183,11 @@ export default async function projectRoutes(fastify: FastifyInstance): Promise<v
 
         if (result.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+        }
+
+        const access = await checkProjectAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         return reply.status(200).send(result.rows[0]);
@@ -215,6 +221,12 @@ export default async function projectRoutes(fastify: FastifyInstance): Promise<v
 
         if (existing.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+        }
+
+        // Object-level: only owner or admin can update
+        const access = await checkProjectAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         const setClauses: string[] = [];

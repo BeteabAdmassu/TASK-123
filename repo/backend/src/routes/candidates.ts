@@ -5,6 +5,7 @@ import { scanCandidate } from '../services/violation-scanner';
 import { createNotification } from '../services/notification.service';
 import { createAuditEntry } from '../services/audit.service';
 import * as candidateAccess from '../services/candidate-access';
+import { checkPostingAccess } from '../services/project-access';
 
 interface CandidateBody {
   first_name: string;
@@ -140,6 +141,12 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
         );
         if (postingCheck.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Job posting not found' });
+        }
+
+        // Object-level auth via posting's parent project
+        const access = await checkPostingAccess(fastify.db, postingId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         const countResult = await fastify.db.query(

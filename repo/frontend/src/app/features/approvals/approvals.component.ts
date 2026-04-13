@@ -160,13 +160,12 @@ export class ApprovalsComponent implements OnInit, OnDestroy {
 
   loadAuditTrail(approvalId: string): void {
     this.auditLoading = true;
-    this.api.get<{ data: AuditEntry[] }>('/audit', {
-      page: 1, pageSize: 50
-    }).pipe(takeUntil(this.destroy$)).subscribe({
+    // Use approval-specific audit endpoint (accessible to requester/approver, not admin-only)
+    this.api.get<{ data: AuditEntry[] }>(`/approvals/${approvalId}/audit`).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
       next: (res) => {
-        this.auditTrail = (res.data || []).filter(a =>
-          a.metadata?.['entity_id'] === approvalId || a.metadata?.['approval_id'] === approvalId
-        );
+        this.auditTrail = res.data || [];
         this.auditLoading = false;
       },
       error: () => {
