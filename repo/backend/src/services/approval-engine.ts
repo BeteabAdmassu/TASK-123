@@ -117,6 +117,25 @@ export async function processApprovalDecision(
   return { requestStatus, completed };
 }
 
+/**
+ * Strict per-entity field whitelist to prevent SQL identifier injection.
+ * Only these columns may be modified via approval write-back.
+ */
+const WRITEBACK_ALLOWED_FIELDS: Record<string, Set<string>> = {
+  candidate: new Set(['status', 'eeoc_disposition', 'email', 'phone']),
+  service_spec: new Set(['status', 'daily_capacity']),
+  credit_change: new Set(['status']),
+};
+
+const TABLE_MAP: Record<string, string> = {
+  candidate: 'candidates',
+  service_spec: 'service_specifications',
+  credit_change: 'credit_changes',
+};
+
+// SQL-safe identifier pattern: letters, digits, underscores only
+const SAFE_IDENTIFIER = /^[a-z_][a-z0-9_]*$/;
+
 async function applyWriteBack(
   db: Pool,
   entityType: string,
@@ -124,25 +143,35 @@ async function applyWriteBack(
   writeBack: Record<string, unknown>,
   actorId: string
 ): Promise<void> {
-  const tableMap: Record<string, string> = {
-    candidate: 'candidates',
-    service_spec: 'service_specifications',
-    credit_change: 'credit_changes',
-  };
+  const table = TABLE_MAP[entityType];
+  const allowed = WRITEBACK_ALLOWED_FIELDS[entityType];
+  if (!table || !allowed || !writeBack) return;
 
-  const table = tableMap[entityType];
-  if (!table || !writeBack) return;
+  // Filter to whitelisted fields only and validate identifier safety
+  const safeFields = Object.keys(writeBack).filter(f =>
+    allowed.has(f) && SAFE_IDENTIFIER.test(f)
+  );
+  if (safeFields.length === 0) return;
 
-  const fields = Object.keys(writeBack);
-  if (fields.length === 0) return;
+  const rejected = Object.keys(writeBack).filter(f => !allowed.has(f));
+  if (rejected.length > 0) {
+    // Log attempt to write disallowed fields — potential abuse
+    await createAuditEntry(db, entityType, entityId, 'write_back_rejected_fields', actorId, null, {
+      rejected_fields: rejected,
+      allowed_fields: Array.from(allowed),
+    });
+  }
 
-  const setClauses = fields.map((f, i) => `${f} = $${i + 1}`);
-  const values = fields.map(f => writeBack[f]);
+  const setClauses = safeFields.map((f, i) => `"${f}" = $${i + 1}`);
+  const values = safeFields.map(f => writeBack[f]);
 
   await db.query(
-    `UPDATE ${table} SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${fields.length + 1}`,
+    `UPDATE "${table}" SET ${setClauses.join(', ')}, updated_at = NOW() WHERE id = $${safeFields.length + 1}`,
     [...values, entityId]
   );
 
-  await createAuditEntry(db, entityType, entityId, 'write_back_applied', actorId, null, writeBack);
+  await createAuditEntry(db, entityType, entityId, 'write_back_applied', actorId, null, {
+    applied_fields: safeFields,
+    values: writeBack,
+  });
 }

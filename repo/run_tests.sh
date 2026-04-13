@@ -642,7 +642,183 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 test_status "GET /api/system/update-info returns info" "200" "$HTTP_CODE"
 
 # ============================================================
-# 21. Frontend Accessibility
+# 21. Object-Level Authorization Tests
+# ============================================================
+echo ""
+echo "--- Object-Level Authorization ---"
+
+# Approver should NOT be able to see a credit change they are not involved with
+# (Create a credit change without a template so no approval steps exist for the approver)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/credit-changes" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
+  -d "{\"entity_type\":\"candidate\",\"entity_id\":\"${CANDIDATE_ID}\",\"amount\":100.00,\"reason\":\"Test isolation\"}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+ISOLATED_CC_ID=$(echo "$BODY" | jq -r '.id' 2>/dev/null)
+test_status "POST /api/credit-changes for isolation test" "201" "$HTTP_CODE" "$BODY"
+
+if [ -n "$ISOLATED_CC_ID" ] && [ "$ISOLATED_CC_ID" != "null" ]; then
+  RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/credit-changes/${ISOLATED_CC_ID}" \
+    -H "Authorization: Bearer ${APPROVER_TOKEN}")
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  test_status "GET /api/credit-changes/:id as unrelated approver returns 403" "403" "$HTTP_CODE"
+fi
+
+# Notification export ownership: approver should not export recruiter's notification
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/notifications" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+BODY=$(echo "$RESPONSE" | head -n -1)
+RECRUITER_NOTIF_ID=$(echo "$BODY" | jq -r '.data[0].id // empty' 2>/dev/null)
+
+if [ -n "$RECRUITER_NOTIF_ID" ]; then
+  RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/notifications/export/${RECRUITER_NOTIF_ID}" \
+    -H "Authorization: Bearer ${APPROVER_TOKEN}")
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  test_status "POST /api/notifications/export/:id as non-owner returns 403" "403" "$HTTP_CODE"
+fi
+
+# Reviewer cannot create projects (role check)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/projects" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${REVIEWER_TOKEN}" \
+  -d '{"title":"Should Fail"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "POST /api/projects as reviewer returns 403" "403" "$HTTP_CODE"
+
+# Approver cannot create candidates (role check)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/postings/${POSTING_ID}/candidates" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}" \
+  -d '{"first_name":"Blocked","last_name":"User"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "POST /api/candidates as approver returns 403" "403" "$HTTP_CODE"
+
+# ============================================================
+# 22. Contract / Path Alignment Tests
+# ============================================================
+echo ""
+echo "--- Endpoint Contract Tests ---"
+
+# Verify correct endpoint paths used by frontend match backend
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/services/specifications" \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/services/specifications (not /specs) returns 200" "200" "$HTTP_CODE"
+
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/services/specifications/${SPEC_ID}/pricing" \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/services/specifications/:id/pricing returns 200" "200" "$HTTP_CODE"
+
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/services/specifications/${SPEC_ID}/capacity" \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/services/specifications/:id/capacity returns 200" "200" "$HTTP_CODE"
+
+# Verify notification endpoints use correct paths (not /status)
+NOTIF_RESPONSE=$(curl -s "${BASE_URL}/notifications" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+TEST_NOTIF_ID=$(echo "$NOTIF_RESPONSE" | jq -r '.data[0].id // empty' 2>/dev/null)
+if [ -n "$TEST_NOTIF_ID" ]; then
+  RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/notifications/${TEST_NOTIF_ID}/read" \
+    -H "Authorization: Bearer ${APPROVER_TOKEN}")
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  test_status "PUT /api/notifications/:id/read (not /status) returns 200" "200" "$HTTP_CODE"
+fi
+
+# Verify media uses /playback-state not /playback
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/media" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+BODY=$(echo "$RESPONSE" | head -n -1)
+TEST_MEDIA_ID=$(echo "$BODY" | jq -r '.data[0].id // empty' 2>/dev/null)
+if [ -n "$TEST_MEDIA_ID" ]; then
+  RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/media/${TEST_MEDIA_ID}/playback-state" \
+    -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  test_status "GET /api/media/:id/playback-state (not /playback) returns 200" "200" "$HTTP_CODE"
+fi
+
+# Verify geo import uses /import suffix
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/geo/datasets/import" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
+  -d '{"name":"Test Points","source_type":"geojson","file_content":"{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"geometry\":{\"type\":\"Point\",\"coordinates\":[-73.9857,40.7484]},\"properties\":{\"name\":\"NYC\"}}]}"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+if [ "$HTTP_CODE" = "200" ] || [ "$HTTP_CODE" = "201" ]; then
+  log_pass "POST /api/geo/datasets/import (not /geo/datasets) returns $HTTP_CODE"
+else
+  log_fail "POST /api/geo/datasets/import" "Expected 200 or 201, got $HTTP_CODE"
+fi
+
+# ============================================================
+# 23. Attachment Authorization Tests
+# ============================================================
+echo ""
+echo "--- Attachment Authorization ---"
+
+# Approver should not access candidate attachments if not assigned approval
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/candidates/${CANDIDATE_ID}/attachments" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/candidates/:id/attachments as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# ============================================================
+# 24. Credit Changes List Authorization
+# ============================================================
+echo ""
+echo "--- Credit Changes List Authorization ---"
+
+# Approver should only see credit changes where they are assigned (not all)
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/credit-changes" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+test_status "GET /api/credit-changes as approver returns 200" "200" "$HTTP_CODE"
+
+# ============================================================
+# 25. Tile Endpoint
+# ============================================================
+echo ""
+echo "--- Offline Tile Serving ---"
+
+# Request non-existent tile returns 404 (not 500 or missing route)
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/tiles/0/0/0.png" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/tiles/0/0/0.png returns 404 when tile missing" "404" "$HTTP_CODE"
+
+# Path traversal attempt should be rejected
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/tiles/0/0/..%2F..%2Fetc%2Fpasswd.png" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+if [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "404" ]; then
+  log_pass "GET /api/tiles with path traversal attempt rejected ($HTTP_CODE)"
+else
+  log_fail "Tile path traversal" "Expected 400 or 404, got $HTTP_CODE"
+fi
+
+# ============================================================
+# 26. Notification Pending Count Contract
+# ============================================================
+echo ""
+echo "--- Notification Count Contract ---"
+
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/notifications/pending-count" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+test_status "GET /api/notifications/pending-count returns 200" "200" "$HTTP_CODE"
+
+COUNT_FIELD=$(echo "$BODY" | jq '.count' 2>/dev/null)
+if [ "$COUNT_FIELD" != "null" ] && [ -n "$COUNT_FIELD" ]; then
+  log_pass "pending-count returns { count } field (value: $COUNT_FIELD)"
+else
+  log_fail "pending-count response shape" "Expected { count } field, got: $BODY"
+fi
+
+# ============================================================
+# 27. Frontend Accessibility
 # ============================================================
 echo ""
 echo "--- Frontend ---"

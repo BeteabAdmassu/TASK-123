@@ -80,11 +80,20 @@ export async function scanCandidate(
 
       case 'duplicate_pattern': {
         const field = ruleConfig.field as string;
-        if (field && candidate[field]) {
+        // For encrypted fields like ssn_encrypted, use the deterministic hash
+        // column (ssn_hash) for comparison instead of comparing random ciphertext.
+        const HASH_FIELD_MAP: Record<string, string> = {
+          ssn_encrypted: 'ssn_hash',
+        };
+        const lookupField = HASH_FIELD_MAP[field] || field;
+        const lookupValue = candidate[lookupField] || candidate[field];
+
+        // Validate field name is a safe SQL identifier
+        if (field && lookupValue && /^[a-z_][a-z0-9_]*$/.test(lookupField)) {
           const dupeResult = await db.query(
             `SELECT id FROM candidates
-             WHERE ${field} = $1 AND id != $2 AND archived_at IS NULL`,
-            [candidate[field], candidateId]
+             WHERE "${lookupField}" = $1 AND id != $2 AND archived_at IS NULL`,
+            [lookupValue, candidateId]
           );
           if (dupeResult.rows.length > 0) {
             violations.push({

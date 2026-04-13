@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import * as bcrypt from 'bcryptjs';
-import { encryptField, decryptField, maskField } from '../services/encryption.service';
+import { encryptField, decryptField, maskField, deterministicHash } from '../services/encryption.service';
 import { scanCandidate } from '../services/violation-scanner';
 import { createNotification } from '../services/notification.service';
 import { createAuditEntry } from '../services/audit.service';
@@ -179,14 +179,15 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
         }
 
         const ssnEncrypted = ssn ? encryptField(ssn) : null;
+        const ssnHash = ssn ? deterministicHash(ssn) : null;
         const dobEncrypted = dob ? encryptField(dob) : null;
         const compensationEncrypted = compensation ? encryptField(compensation) : null;
 
         const result = await fastify.db.query(
-          `INSERT INTO candidates (job_posting_id, first_name, last_name, email, phone, ssn_encrypted, dob_encrypted, compensation_encrypted, eeoc_disposition)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO candidates (job_posting_id, first_name, last_name, email, phone, ssn_encrypted, ssn_hash, dob_encrypted, compensation_encrypted, eeoc_disposition)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
            RETURNING *`,
-          [postingId, first_name, last_name, email || null, phone || null, ssnEncrypted, dobEncrypted, compensationEncrypted, eeoc_disposition || null]
+          [postingId, first_name, last_name, email || null, phone || null, ssnEncrypted, ssnHash, dobEncrypted, compensationEncrypted, eeoc_disposition || null]
         );
 
         const candidate = result.rows[0];
@@ -219,20 +220,50 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
   );
 
   // GET /api/candidates/:id - get candidate detail
+  // Object-level auth: admin/reviewer see all; recruiter sees only candidates
+  // in postings under projects they created; approver sees via approval assignments.
   fastify.get<{ Params: CandidateParams }>(
     '/api/candidates/:id',
     { preHandler: [fastify.authenticate] },
     async (request: FastifyRequest<{ Params: CandidateParams }>, reply: FastifyReply) => {
       const { id } = request.params;
+      const userId = request.user.id;
+      const userRole = request.user.role;
 
       try {
         const result = await fastify.db.query(
-          'SELECT * FROM candidates WHERE id = $1',
+          `SELECT c.*, jp.project_id, rp.created_by AS project_owner
+           FROM candidates c
+           LEFT JOIN job_postings jp ON jp.id = c.job_posting_id
+           LEFT JOIN recruiting_projects rp ON rp.id = jp.project_id
+           WHERE c.id = $1`,
           [id]
         );
 
         if (result.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Candidate not found' });
+        }
+
+        // Admin and reviewer can see any candidate
+        if (userRole !== 'admin' && userRole !== 'reviewer') {
+          const row = result.rows[0];
+          // Recruiter must own the project, or be assigned as approver on a related approval
+          if (userRole === 'recruiter' && row.project_owner !== userId) {
+            return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate' });
+          }
+          if (userRole === 'approver') {
+            // Approvers may view candidates only if they have an approval step assignment for this candidate
+            const approverCheck = await fastify.db.query(
+              `SELECT 1 FROM approval_requests ar
+               JOIN approval_steps ast ON ast.request_id = ar.id
+               WHERE ar.entity_type = 'candidate' AND ar.entity_id = $1 AND ast.approver_id = $2
+               LIMIT 1`,
+              [id, userId]
+            );
+            if (approverCheck.rows.length === 0) {
+              return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate' });
+            }
+          }
         }
 
         const masked = maskCandidateRow(result.rows[0]);
@@ -282,17 +313,18 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
         };
 
         const ssnEncrypted = ssn !== undefined ? (ssn ? encryptField(ssn) : null) : existing.rows[0].ssn_encrypted;
+        const ssnHash = ssn !== undefined ? (ssn ? deterministicHash(ssn) : null) : existing.rows[0].ssn_hash;
         const dobEncrypted = dob !== undefined ? (dob ? encryptField(dob) : null) : existing.rows[0].dob_encrypted;
         const compensationEncrypted = compensation !== undefined ? (compensation ? encryptField(compensation) : null) : existing.rows[0].compensation_encrypted;
 
         const result = await fastify.db.query(
           `UPDATE candidates
            SET first_name = $1, last_name = $2, email = $3, phone = $4,
-               ssn_encrypted = $5, dob_encrypted = $6, compensation_encrypted = $7,
-               eeoc_disposition = $8, updated_at = NOW()
-           WHERE id = $9
+               ssn_encrypted = $5, ssn_hash = $6, dob_encrypted = $7, compensation_encrypted = $8,
+               eeoc_disposition = $9, updated_at = NOW()
+           WHERE id = $10
            RETURNING *`,
-          [first_name, last_name, email || null, phone || null, ssnEncrypted, dobEncrypted, compensationEncrypted, eeoc_disposition || null, id]
+          [first_name, last_name, email || null, phone || null, ssnEncrypted, ssnHash, dobEncrypted, compensationEncrypted, eeoc_disposition || null, id]
         );
 
         const afterState = { first_name, last_name, email, phone, eeoc_disposition };

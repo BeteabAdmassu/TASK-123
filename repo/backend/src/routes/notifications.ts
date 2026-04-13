@@ -187,10 +187,23 @@ export default async function notificationRoutes(fastify: FastifyInstance): Prom
     async (request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
+        const userId = request.user.id;
+
+        // Ownership check: only the recipient (or admin) may export
+        const existing = await fastify.db.query(
+          'SELECT id, recipient_id FROM notification_tasks WHERE id = $1',
+          [id]
+        );
+        if (existing.rows.length === 0) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Notification not found' });
+        }
+        if (existing.rows[0].recipient_id !== userId && request.user.role !== 'admin') {
+          return reply.status(403).send({ error: 'Forbidden', message: 'You can only export your own notifications' });
+        }
 
         const filePath = await generateExportFile(fastify.db, id);
 
-        fastify.log.info({ notificationId: id }, 'Notification export file generated');
+        fastify.log.info({ notificationId: id, userId }, 'Notification export file generated');
         return reply.status(200).send({ path: filePath });
       } catch (err: unknown) {
         const error = err as { statusCode?: number; message?: string };

@@ -184,8 +184,8 @@ export class ApprovalsComponent implements OnInit, OnDestroy {
     if (!this.selectedApproval || !this.selectedStep || this.decisionForm.invalid) return;
     this.isDeciding = true;
 
-    this.api.post(
-      `/approvals/${this.selectedApproval.id}/steps/${this.selectedStep.id}/decide`,
+    this.api.put(
+      `/approvals/${this.selectedApproval.id}/steps/${this.selectedStep.id}`,
       this.decisionForm.value
     ).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {

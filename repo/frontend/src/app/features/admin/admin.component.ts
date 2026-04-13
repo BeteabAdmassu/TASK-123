@@ -253,11 +253,12 @@ export class AdminComponent implements OnInit, OnDestroy {
   // ===== Violation Rules =====
   loadViolationRules(): void {
     this.rulesLoading = true;
-    this.api.get<ViolationRule[]>('/violations/rules').pipe(
+    this.api.get<{ data: ViolationRule[] } | ViolationRule[]>('/violations/rules').pipe(
       takeUntil(this.destroy$)
     ).subscribe({
-      next: (rules) => {
-        this.violationRules = Array.isArray(rules) ? rules : [];
+      next: (rules: any) => {
+        const arr = rules?.data || rules;
+        this.violationRules = Array.isArray(arr) ? arr : [];
         this.rulesLoading = false;
       },
       error: () => {

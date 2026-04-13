@@ -87,7 +87,10 @@ describe('ViolationScanner', () => {
     expect(violations[0].details.field).toBe('eeoc_disposition');
   });
 
-  it('should detect duplicate SSN patterns', async () => {
+  it('should detect duplicate SSN using deterministic ssn_hash (not ciphertext)', async () => {
+    // The rule references ssn_encrypted, but the scanner should use the
+    // deterministic ssn_hash column for comparison (since AES-GCM ciphertext
+    // is random and cannot be compared for equality).
     mockQuery
       .mockResolvedValueOnce({
         rows: [{
@@ -103,11 +106,12 @@ describe('ViolationScanner', () => {
           id: 'cand-3',
           first_name: 'Bob',
           last_name: 'Jones',
-          ssn_encrypted: Buffer.from('encrypted-ssn'),
+          ssn_encrypted: Buffer.from('random-ciphertext'),
+          ssn_hash: 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
         }],
       })
       .mockResolvedValueOnce({ rows: [] })
-      // Duplicate check
+      // Duplicate check — should query ssn_hash, not ssn_encrypted
       .mockResolvedValueOnce({ rows: [{ id: 'cand-duplicate' }] })
       // Existing violations check
       .mockResolvedValueOnce({ rows: [] })
@@ -119,6 +123,16 @@ describe('ViolationScanner', () => {
     expect(violations.length).toBe(1);
     expect(violations[0].details.type).toBe('duplicate_pattern');
     expect((violations[0].details as any).duplicateIds).toContain('cand-duplicate');
+
+    // Verify the SQL query used ssn_hash (the deterministic column), not ssn_encrypted
+    const dupeQuery = mockQuery.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('SELECT id FROM candidates')
+    );
+    expect(dupeQuery).toBeDefined();
+    if (dupeQuery) {
+      expect(dupeQuery[0]).toContain('"ssn_hash"');
+      expect(dupeQuery[0]).not.toContain('"ssn_encrypted"');
+    }
   });
 
   it('should return empty for candidate with no violations', async () => {

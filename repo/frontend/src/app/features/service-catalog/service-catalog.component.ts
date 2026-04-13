@@ -159,11 +159,12 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.api.get<Category[]>('/services/categories').pipe(
+    this.api.get<{ data: Category[] } | Category[]>('/services/categories').pipe(
       takeUntil(this.destroy$)
     ).subscribe({
-      next: (cats) => {
-        this.categories = Array.isArray(cats) ? cats : [];
+      next: (cats: any) => {
+        const arr = cats?.data || cats;
+        this.categories = Array.isArray(arr) ? arr : [];
         this.buildTree();
         this.isLoading = false;
       },
@@ -203,7 +204,7 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
     if (!this.selectedCategoryId) return;
     this.specsLoading = true;
 
-    this.api.get<PaginatedResponse<Specification>>('/services/specs', {
+    this.api.get<PaginatedResponse<Specification>>('/services/specifications', {
       page: this.specPage,
       pageSize: this.specPageSize,
       category_id: this.selectedCategoryId
@@ -297,8 +298,8 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
     }
 
     const request = this.editingSpec
-      ? this.api.put(`/services/specs/${this.editingSpec.id}`, body)
-      : this.api.post('/services/specs', body);
+      ? this.api.put(`/services/specifications/${this.editingSpec.id}`, body)
+      : this.api.post('/services/specifications', body);
 
     request.pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
@@ -316,7 +317,7 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
   }
 
   updateSpecStatus(spec: Specification, newStatus: string): void {
-    this.api.put(`/services/specs/${spec.id}/status`, { status: newStatus }).pipe(
+    this.api.put(`/services/specifications/${spec.id}/status`, { status: newStatus }).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
@@ -338,7 +339,7 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
 
   loadPricingRules(specId: string): void {
     this.pricingLoading = true;
-    this.api.get<PricingRule[]>(`/services/specs/${specId}/pricing`).pipe(
+    this.api.get<PricingRule[]>(`/services/specifications/${specId}/pricing`).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (rules) => {
@@ -356,7 +357,7 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
     if (!this.selectedSpec || this.pricingForm.invalid) return;
     this.isSaving = true;
 
-    this.api.post(`/services/specs/${this.selectedSpec.id}/pricing`, this.pricingForm.value).pipe(
+    this.api.post(`/services/specifications/${this.selectedSpec.id}/pricing`, this.pricingForm.value).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
@@ -398,7 +399,7 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
     if (!this.selectedSpec || this.capacityForm.invalid) return;
     this.isSaving = true;
 
-    this.api.post(`/services/specs/${this.selectedSpec.id}/capacity`, this.capacityForm.value).pipe(
+    this.api.post(`/services/specifications/${this.selectedSpec.id}/capacity`, this.capacityForm.value).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {

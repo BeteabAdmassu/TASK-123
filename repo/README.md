@@ -4,10 +4,11 @@ An enterprise-grade, fully offline desktop application that unifies recruiting p
 
 ## Prerequisites
 
-- Docker 20.10+ and Docker Compose v2
-- Node.js 18+ (for local development only)
-- PostgreSQL 16 with PostGIS (bundled via Docker)
-- Bash (for running tests)
+- Docker 20.10+ and Docker Compose v2 (for development / CI)
+- Node.js 18+ (for development and Electron packaging)
+- PostgreSQL 16 with PostGIS (bundled in Docker for dev; bundled in MSI installer for production)
+- Bash (for running integration tests)
+- Electron 28+ and electron-builder 24+ (for desktop packaging only)
 
 ## Getting Started
 
@@ -64,10 +65,63 @@ npm install
 npm start
 ```
 
+### Desktop Build (Signed MSI Installer)
+
+The production deliverable is a signed Windows MSI installer built via Electron + electron-builder.
+See [`docs/desktop-build.md`](../docs/desktop-build.md) for the full pipeline.
+
+```bash
+# 1. Build backend
+cd backend && npm install && npm run build
+
+# 2. Build frontend
+cd ../frontend && npm install && npx ng build --configuration=production
+
+# 3. Build Electron shell
+cd ../electron && npm install && npm run build
+
+# 4. Package signed MSI (requires WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD env vars)
+npm run dist:msi
+```
+
+The MSI installer bundles PostgreSQL 16, runs migrations on first launch via
+`installer/scripts/post-install.ps1`, and registers a system-tray autostart entry.
+
+### Offline Update & Rollback
+
+Update packages are signed `.tar.gz` archives importable from USB/disk:
+
+```bash
+# Create update package
+tar -czf talentops-update-1.1.0.tar.gz -C dist/win-unpacked .
+sha256sum talentops-update-1.1.0.tar.gz > talentops-update-1.1.0.tar.gz.sha256
+```
+
+Inside the app: **Admin → System → Check for Update** scans the configured
+directory (or USB mount) for `talentops-update-*.tar.gz` files, verifies the
+SHA-256 checksum, backs up the current version to `previous/`, and applies the
+update. One-click rollback swaps `current/` and `previous/`.
+
 ## Project Structure
 
 ```
 repo/
+├── electron/                          # Electron desktop shell
+│   ├── main.ts                        # App entry, multi-window management
+│   ├── tray.ts                        # System tray badge (polls pending count)
+│   ├── menus.ts                       # Context menus, global shortcuts
+│   ├── updater.ts                     # Offline update + rollback mechanism
+│   ├── checkpoint.ts                  # 30-second crash-recovery checkpoints
+│   ├── preload.ts                     # IPC bridge to renderer
+│   ├── package.json                   # Electron + electron-builder deps
+│   ├── electron-builder.yml           # MSI/NSIS packaging config
+│   └── tsconfig.json
+├── installer/                         # MSI installer scripts
+│   └── scripts/
+│       ├── post-install.ps1           # PostgreSQL setup, migrations, shortcuts
+│       └── pre-uninstall.ps1          # Cleanup on uninstall
+├── shared/                            # Shared FE/BE API contract types
+│   └── api-contracts.ts               # Endpoint paths and response shapes
 ├── backend/                           # Fastify local server (Node.js/TypeScript)
 │   ├── Dockerfile                     # Alpine-based multi-stage build
 │   ├── package.json

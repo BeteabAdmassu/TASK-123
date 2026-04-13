@@ -81,7 +81,7 @@ export class NotificationsComponent implements OnInit, OnDestroy {
   }
 
   markAsRead(notification: NotificationTask): void {
-    this.api.put(`/notifications/${notification.id}/status`, { status: 'opened' }).pipe(
+    this.api.put(`/notifications/${notification.id}/read`, {}).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
@@ -96,7 +96,7 @@ export class NotificationsComponent implements OnInit, OnDestroy {
   }
 
   markAsAcknowledged(notification: NotificationTask): void {
-    this.api.put(`/notifications/${notification.id}/status`, { status: 'acknowledged' }).pipe(
+    this.api.put(`/notifications/${notification.id}/acknowledge`, {}).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
@@ -112,12 +112,12 @@ export class NotificationsComponent implements OnInit, OnDestroy {
 
   exportNotification(notification: NotificationTask): void {
     this.isExporting = true;
-    this.api.post<{ export_path: string }>(`/notifications/${notification.id}/export`, {}).pipe(
+    this.api.post<{ path: string }>(`/notifications/export/${notification.id}`, {}).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (res) => {
         this.isExporting = false;
-        notification.export_path = res.export_path;
+        notification.export_path = res.path;
         this.snackBar.open('Export generated successfully', 'Close', { duration: 3000 });
       },
       error: () => {

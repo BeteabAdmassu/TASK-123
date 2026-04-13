@@ -85,6 +85,13 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
   contextMenuY = 0;
   showContextMenu = false;
 
+  contextMenuItems = [
+    { label: 'Tag candidate', action: () => this.onTagCandidate() },
+    { label: 'Request missing materials', action: () => this.onRequestMissingMaterials() },
+    { label: 'Create approval task', action: () => this.onCreateApprovalTask() },
+    { label: 'Copy structured fields', action: () => this.copyStructuredFields() }
+  ];
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -171,8 +178,12 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
   }
 
   loadTags(): void {
-    this.api.get<Tag[]>('/tags').pipe(takeUntil(this.destroy$)).subscribe({
-      next: (tags) => { this.allTags = Array.isArray(tags) ? tags : []; },
+    this.api.get<Tag[] | { data: Tag[] }>('/tags').pipe(takeUntil(this.destroy$)).subscribe({
+      next: (res) => {
+        // Backend returns { data: Tag[] }; handle both shapes defensively
+        const tags = Array.isArray(res) ? res : ((res as { data: Tag[] })?.data || []);
+        this.allTags = tags;
+      },
       error: () => { this.allTags = []; }
     });
   }
@@ -273,6 +284,93 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
 
   closeContextMenu(): void {
     this.showContextMenu = false;
+  }
+
+  onTagCandidate(): void {
+    this.closeContextMenu();
+    this.showTagMenu = true;
+  }
+
+  onRequestMissingMaterials(): void {
+    this.closeContextMenu();
+    if (!this.candidate) return;
+
+    const missingFields: string[] = [];
+    if (this.isMissing(this.candidate.email)) missingFields.push('email address');
+    if (this.isMissing(this.candidate.phone)) missingFields.push('phone number');
+    if (this.attachments.length === 0) missingFields.push('resume/attachments');
+
+    const message = missingFields.length > 0
+      ? `Please provide the following missing materials for candidate ${this.candidate.first_name} ${this.candidate.last_name}: ${missingFields.join(', ')}.`
+      : `Please review and provide any outstanding materials for candidate ${this.candidate.first_name} ${this.candidate.last_name}.`;
+
+    this.api.post(`/candidates/${this.candidateId}/request-materials`, {
+      message
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.snackBar.open('Material request sent', 'Close', { duration: 3000 });
+      },
+      error: () => {
+        this.snackBar.open('Failed to send material request', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  onCreateApprovalTask(): void {
+    this.closeContextMenu();
+    if (!this.candidate) return;
+
+    // Fetch active approval templates to find a valid template_id
+    this.api.get<{ data: Array<{ id: string; name: string; is_active: boolean }> }>('/approval-templates').pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (res) => {
+        const templates = res?.data || (Array.isArray(res) ? res : []);
+        const active = templates.filter((t: { is_active: boolean }) => t.is_active);
+        if (active.length === 0) {
+          this.snackBar.open('No active approval templates configured. Contact an administrator.', 'Close', { duration: 5000 });
+          return;
+        }
+
+        const template = active[0];
+        this.api.post('/approvals', {
+          template_id: template.id,
+          entity_type: 'candidate',
+          entity_id: this.candidateId,
+          final_write_back: { status: 'approved' }
+        }).pipe(takeUntil(this.destroy$)).subscribe({
+          next: () => {
+            this.snackBar.open('Approval task created', 'Close', { duration: 3000 });
+          },
+          error: () => {
+            this.snackBar.open('Failed to create approval task', 'Close', { duration: 3000 });
+          }
+        });
+      },
+      error: () => {
+        this.snackBar.open('Failed to load approval templates', 'Close', { duration: 3000 });
+      }
+    });
+  }
+
+  async copyStructuredFields(): Promise<void> {
+    this.closeContextMenu();
+    if (!this.candidate) return;
+
+    const lines = [
+      `Name: ${this.candidate.first_name} ${this.candidate.last_name}`,
+      `Email: ${this.candidate.email || 'N/A'}`,
+      `Phone: ${this.candidate.phone || 'N/A'}`,
+      `Status: ${this.candidate.status}`
+    ];
+    const text = lines.join('\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      this.snackBar.open('Candidate details copied to clipboard', 'Close', { duration: 2000 });
+    } catch {
+      this.snackBar.open('Failed to copy to clipboard', 'Close', { duration: 3000 });
+    }
   }
 
   goBack(): void {

@@ -5,7 +5,7 @@ import { Subject, Observable } from 'rxjs';
 export class KeyboardService {
   private searchTriggeredSubject = new Subject<void>();
   private saveTriggeredSubject = new Subject<void>();
-  private notificationTriggeredSubject = new Subject<void>();
+  private nextRecordTriggeredSubject = new Subject<void>();
 
   /** Emits when Ctrl+K is pressed (search dialog trigger) */
   searchTriggered$: Observable<void> = this.searchTriggeredSubject.asObservable();
@@ -13,8 +13,8 @@ export class KeyboardService {
   /** Emits when Ctrl+Enter is pressed (save/submit trigger) */
   saveTriggered$: Observable<void> = this.saveTriggeredSubject.asObservable();
 
-  /** Emits when Alt+N is pressed (notification panel trigger) */
-  notificationTriggered$: Observable<void> = this.notificationTriggeredSubject.asObservable();
+  /** Emits when Alt+N is pressed (next record navigation trigger) */
+  nextRecordTriggered$: Observable<void> = this.nextRecordTriggeredSubject.asObservable();
 
   handleKeydown(event: KeyboardEvent): void {
     const ctrlOrMeta = event.ctrlKey || event.metaKey;
@@ -40,10 +40,10 @@ export class KeyboardService {
       return;
     }
 
-    // Alt+N: Open notifications
+    // Alt+N: Next record
     if (event.altKey && (event.key === 'n' || event.key === 'N')) {
       event.preventDefault();
-      this.notificationTriggeredSubject.next();
+      this.nextRecordTriggeredSubject.next();
       return;
     }
   }

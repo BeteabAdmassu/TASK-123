@@ -43,3 +43,14 @@ export function maskField(value: string, visibleChars: number = 4): string {
   if (value.length <= visibleChars) return '****';
   return '*'.repeat(value.length - visibleChars) + value.slice(-visibleChars);
 }
+
+/**
+ * Deterministic keyed hash for duplicate detection.
+ * Uses HMAC-SHA256 with the master key so the same plaintext always
+ * produces the same hash, enabling duplicate lookups without decrypting.
+ * The hash is NOT reversible to the plaintext.
+ */
+export function deterministicHash(plaintext: string): string {
+  const key = getKey();
+  return crypto.createHmac('sha256', key).update(plaintext).digest('hex');
+}

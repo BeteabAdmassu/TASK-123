@@ -480,7 +480,7 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Playback state persistence
   loadPlaybackState(assetId: string): void {
-    this.api.get<PlaybackState>(`/media/${assetId}/playback`).pipe(
+    this.api.get<PlaybackState>(`/media/${assetId}/playback-state`).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (state) => {
@@ -514,7 +514,7 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
     const video = this.videoRef.nativeElement;
     if (video.currentTime <= 0) return;
 
-    this.api.post(`/media/${this.selectedAsset.id}/playback`, {
+    this.api.put(`/media/${this.selectedAsset.id}/playback-state`, {
       position_seconds: Math.floor(video.currentTime),
       playback_speed: this.playbackSpeed,
       selected_quality: this.selectedQuality >= 0

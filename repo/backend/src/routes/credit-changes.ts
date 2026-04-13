@@ -37,6 +37,7 @@ const creditChangeBodySchema = {
 export default async function creditChangesRoutes(fastify: FastifyInstance): Promise<void> {
 
   // GET /api/credit-changes - list credit changes (paginated, filter by status)
+  // Object-level: admin sees all; others see only their own requests or ones they're approving
   fastify.get<{ Querystring: CreditChangeQuery }>(
     '/api/credit-changes',
     { preHandler: [fastify.authenticate] },
@@ -45,6 +46,8 @@ export default async function creditChangesRoutes(fastify: FastifyInstance): Pro
       const pageSize = Math.min(100, Math.max(1, parseInt(request.query.pageSize || '20', 10) || 20));
       const offset = (page - 1) * pageSize;
       const { status } = request.query;
+      const userId = request.user.id;
+      const userRole = request.user.role;
 
       try {
         const conditions: string[] = [];
@@ -54,6 +57,18 @@ export default async function creditChangesRoutes(fastify: FastifyInstance): Pro
         if (status) {
           conditions.push(`cc.status = $${paramIdx++}`);
           params.push(status);
+        }
+
+        // Non-admin: restrict to own requests or requests with assigned approval steps
+        if (userRole !== 'admin') {
+          conditions.push(`(cc.requested_by = $${paramIdx} OR EXISTS (
+            SELECT 1 FROM approval_requests ar
+            JOIN approval_steps ast ON ast.request_id = ar.id
+            WHERE ar.entity_type = 'credit_change' AND ar.entity_id = cc.id::text
+            AND ast.approver_id = $${paramIdx}
+          ))`);
+          params.push(userId);
+          paramIdx++;
         }
 
         const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -177,11 +192,14 @@ export default async function creditChangesRoutes(fastify: FastifyInstance): Pro
   );
 
   // GET /api/credit-changes/:id - get credit change detail
+  // Object-level auth: requester, assigned approver, or admin can view
   fastify.get<{ Params: IdParam }>(
     '/api/credit-changes/:id',
     { preHandler: [fastify.authenticate] },
     async (request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) => {
       const { id } = request.params;
+      const userId = request.user.id;
+      const userRole = request.user.role;
 
       try {
         const result = await fastify.db.query(
@@ -197,6 +215,21 @@ export default async function creditChangesRoutes(fastify: FastifyInstance): Pro
         }
 
         const creditChange = result.rows[0];
+
+        // Object-level access: admin sees all; others must be requester or assigned approver
+        if (userRole !== 'admin') {
+          const isRequester = creditChange.requested_by === userId;
+          const isApprover = await fastify.db.query(
+            `SELECT 1 FROM approval_requests ar
+             JOIN approval_steps ast ON ast.request_id = ar.id
+             WHERE ar.entity_type = 'credit_change' AND ar.entity_id = $1 AND ast.approver_id = $2
+             LIMIT 1`,
+            [id, userId]
+          );
+          if (!isRequester && isApprover.rows.length === 0) {
+            return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this credit change' });
+          }
+        }
 
         // Fetch related approval requests
         const approvalResult = await fastify.db.query(

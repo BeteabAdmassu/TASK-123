@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { Subject, takeUntil } from 'rxjs';
+import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 
 import { AuthService } from './core/auth/auth.service';
 import { CheckpointService } from './core/services/checkpoint.service';
@@ -19,6 +19,9 @@ export class AppComponent implements OnInit, OnDestroy {
   currentLang = 'en';
   userName = '';
   isSidenavOpen = true;
+
+  /** Emits when Alt+N is pressed; feature components subscribe to navigate to the next record */
+  nextRecord$ = new BehaviorSubject<number>(0);
 
   navItems = [
     { label: 'NAV.DASHBOARD', route: '/dashboard', icon: 'dashboard' },
@@ -78,10 +81,10 @@ export class AppComponent implements OnInit, OnDestroy {
         // Save event propagated through keyboard service
       });
 
-    this.keyboardService.notificationTriggered$
+    this.keyboardService.nextRecordTriggered$
       .pipe(takeUntil(this.destroy$))
       .subscribe(() => {
-        this.router.navigate(['/notifications']);
+        this.nextRecord$.next(this.nextRecord$.value + 1);
       });
   }
 

@@ -5,6 +5,12 @@ import { of } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from '../auth/auth.service';
 
+/**
+ * Endpoint path aligned with shared/api-contracts.ts NOTIFICATIONS.PENDING_COUNT:
+ *   GET /notifications/pending-count → { count: number }
+ */
+const PENDING_COUNT_PATH = '/notifications/pending-count';
+
 @Injectable({ providedIn: 'root' })
 export class NotificationBadgeService implements OnDestroy {
   pendingCount$ = new BehaviorSubject<number>(0);
@@ -19,14 +25,14 @@ export class NotificationBadgeService implements OnDestroy {
     this.pollSub = interval(30000).pipe(
       switchMap(() => {
         if (!this.auth.isLoggedIn()) {
-          return of({ total: 0 });
+          return of({ count: 0 });
         }
-        return this.api.get<{ total: number }>('/notifications', { page: 1, pageSize: 1 }).pipe(
-          catchError(() => of({ total: 0 }))
+        return this.api.get<{ count: number }>(PENDING_COUNT_PATH).pipe(
+          catchError(() => of({ count: 0 }))
         );
       })
     ).subscribe(res => {
-      this.pendingCount$.next(res.total || 0);
+      this.pendingCount$.next(res.count || 0);
     });
   }
 
@@ -39,10 +45,10 @@ export class NotificationBadgeService implements OnDestroy {
 
   refresh(): void {
     if (!this.auth.isLoggedIn()) return;
-    this.api.get<{ total: number }>('/notifications', { page: 1, pageSize: 1 }).pipe(
-      catchError(() => of({ total: 0 }))
+    this.api.get<{ count: number }>(PENDING_COUNT_PATH).pipe(
+      catchError(() => of({ count: 0 }))
     ).subscribe(res => {
-      this.pendingCount$.next(res.total || 0);
+      this.pendingCount$.next(res.count || 0);
     });
   }
 

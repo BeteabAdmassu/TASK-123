@@ -1,0 +1,24 @@
+{
+  "name": "talentops-desktop",
+  "version": "1.0.0",
+  "description": "TalentOps Compliance & Service Desk — Electron desktop shell",
+  "main": "dist/main.js",
+  "author": "TalentOps",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:msi": "electron-builder --win nsis msi",
+    "dist": "electron-builder --win --linux"
+  },
+  "dependencies": {
+    "electron": "^28.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.9.0",
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.0"
+  }
+}

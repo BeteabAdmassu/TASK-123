@@ -1,0 +1,56 @@
+appId: com.talentops.desktop
+productName: TalentOps
+copyright: Copyright TalentOps
+
+directories:
+  output: ../dist/installer
+  buildResources: resources
+
+files:
+  - dist/**/*
+  - resources/**/*
+
+extraResources:
+  - from: ../backend/dist
+    to: backend
+    filter:
+      - "**/*"
+  - from: ../frontend/dist/talentops-frontend
+    to: frontend
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: msi
+      arch:
+        - x64
+    - target: nsis
+      arch:
+        - x64
+  icon: resources/icon.ico
+  signAndEditExecutable: true
+  signingHashAlgorithms:
+    - sha256
+  certificateFile: ${env.WIN_CSC_LINK}
+  certificatePassword: ${env.WIN_CSC_KEY_PASSWORD}
+
+msi:
+  oneClick: false
+  perMachine: true
+  runAfterFinish: true
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico
+  include: installer/nsis-hooks.nsh
+
+linux:
+  target:
+    - AppImage
+
+extraFiles:
+  - from: installer/postgresql-16-setup.exe
+    to: resources/postgresql

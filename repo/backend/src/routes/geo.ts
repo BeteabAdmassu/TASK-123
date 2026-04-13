@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import * as fs from 'fs';
+import * as path from 'path';
 
 interface IdParam {
   id: string;
@@ -583,6 +585,71 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
       } catch (err) {
         fastify.log.error(err, 'Failed to get route features');
         return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to get route features' });
+      }
+    },
+  );
+
+  // ─── Offline Tile Serving ──────────────────────────────────────────
+  // GET /api/tiles/:z/:x/:y.png — serve offline map tiles from local directory.
+  // Tiles are pre-populated at data/tiles/{z}/{x}/{y}.png (e.g. from MBTiles export).
+  interface TileParams {
+    z: string;
+    x: string;
+    'y.png': string;
+  }
+
+  const tileParamsSchema = {
+    params: {
+      type: 'object' as const,
+      required: ['z', 'x', 'y.png'],
+      properties: {
+        z: { type: 'string', pattern: '^\\d{1,2}$' },
+        x: { type: 'string', pattern: '^\\d{1,6}$' },
+        'y.png': { type: 'string', pattern: '^\\d{1,6}\\.png$' },
+      },
+      additionalProperties: false,
+    },
+  };
+
+  fastify.get<{ Params: TileParams }>(
+    '/api/tiles/:z/:x/:y.png',
+    {
+      schema: tileParamsSchema,
+      preHandler: [fastify.authenticate],
+    },
+    async (request: FastifyRequest<{ Params: TileParams }>, reply: FastifyReply) => {
+      const { z, x } = request.params;
+      const yPng = request.params['y.png'];
+      const y = yPng.replace(/\.png$/i, '');
+
+      // Validate numeric to prevent path traversal
+      if (!/^\d+$/.test(z) || !/^\d+$/.test(x) || !/^\d+$/.test(y)) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Tile coordinates must be numeric' });
+      }
+
+      const tileDir = process.env.TILE_DIR || path.join(__dirname, '..', '..', 'data', 'tiles');
+      const tilePath = path.join(tileDir, z, x, `${y}.png`);
+
+      // Resolve and verify the path stays within the tile directory (prevent traversal)
+      const resolvedTile = path.resolve(tilePath);
+      const resolvedBase = path.resolve(tileDir);
+      if (!resolvedTile.startsWith(resolvedBase)) {
+        return reply.status(400).send({ error: 'Bad Request', message: 'Invalid tile path' });
+      }
+
+      try {
+        if (!fs.existsSync(resolvedTile)) {
+          return reply.status(404).send({ error: 'Not Found', message: `Tile ${z}/${x}/${y} not available` });
+        }
+
+        const stream = fs.createReadStream(resolvedTile);
+        return reply
+          .header('Content-Type', 'image/png')
+          .header('Cache-Control', 'public, max-age=86400')
+          .send(stream);
+      } catch (err) {
+        fastify.log.error({ err, z, x, y }, 'Failed to serve tile');
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to serve tile' });
       }
     },
   );

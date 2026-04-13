@@ -14,6 +14,7 @@ import { GeospatialComponent } from './features/geospatial/geospatial.component'
 import { MediaPlayerComponent } from './features/media-player/media-player.component';
 import { AdminComponent } from './features/admin/admin.component';
 import { LoginComponent } from './core/auth/login.component';
+import { ResumeEditorComponent } from './features/resume/resume-editor.component';
 
 const routes: Routes = [
   { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
@@ -36,6 +37,11 @@ const routes: Routes = [
   {
     path: 'candidates/:id',
     component: CandidateDetailComponent,
+    canActivate: [AuthGuard]
+  },
+  {
+    path: 'candidates/:id/resume/:resumeId',
+    component: ResumeEditorComponent,
     canActivate: [AuthGuard]
   },
   {

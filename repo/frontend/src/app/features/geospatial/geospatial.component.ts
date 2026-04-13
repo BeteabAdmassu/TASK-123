@@ -102,8 +102,14 @@ export class GeospatialComponent implements OnInit, AfterViewInit, OnDestroy {
       zoomControl: true
     });
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
+    // Offline tile source: serves tiles from the local app server.
+    // To populate the local tiles directory:
+    //   1. Download MBTiles or pre-rendered z/x/y tile PNGs for your region
+    //      (e.g., using tools like tippecanoe, mbutil, or OpenMapTiles).
+    //   2. Extract tiles into backend/data/tiles/{z}/{x}/{y}.png
+    //   3. The backend serves these via GET /api/tiles/:z/:x/:y.png
+    L.tileLayer('/api/tiles/{z}/{x}/{y}.png', {
+      attribution: 'Offline tile data &copy; OpenStreetMap contributors | Served locally via TalentOps tile server',
       maxZoom: 18
     }).addTo(this.map);
   }
@@ -125,7 +131,7 @@ export class GeospatialComponent implements OnInit, AfterViewInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe({
       next: (datasets) => {
-        this.datasets = Array.isArray(datasets) ? datasets : [];
+        this.datasets = Array.isArray(datasets) ? datasets : ((datasets as any).data || []);
         this.isLoading = false;
       },
       error: () => {
@@ -161,7 +167,7 @@ export class GeospatialComponent implements OnInit, AfterViewInit, OnDestroy {
         file_content: fileContent
       };
 
-      this.api.post<GeoDataset>('/geo/datasets', body).pipe(
+      this.api.post<GeoDataset>('/geo/datasets/import', body).pipe(
         takeUntil(this.destroy$)
       ).subscribe({
         next: (dataset) => {
