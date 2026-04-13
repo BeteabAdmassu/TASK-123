@@ -135,7 +135,7 @@
           <mat-list-item *ngFor="let v of resumeVersions" (click)="openResume(v)" class="clickable">
             <mat-icon matListItemIcon>history</mat-icon>
             <span matListItemTitle>Version {{ v.version_number }}</span>
-            <span matListItemLine>By {{ v.created_by_username }} - {{ v.created_at | date:'short' }}</span>
+            <span matListItemLine>By {{ v.created_by_username }} - {{ v.created_at | localDate }}</span>
           </mat-list-item>
         </mat-list>
       </mat-card-content>
@@ -216,7 +216,7 @@
               {{ getViolationSeverityIcon(v.status) }}
             </mat-icon>
             <span matListItemTitle>{{ v.status | titlecase }}</span>
-            <span matListItemLine>{{ v.created_at | date:'short' }}</span>
+            <span matListItemLine>{{ v.created_at | localDate }}</span>
           </mat-list-item>
         </mat-list>
       </mat-card-content>

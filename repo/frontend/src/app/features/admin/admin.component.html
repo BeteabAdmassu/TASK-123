@@ -5,53 +5,53 @@
 
   <mat-tab-group (selectedIndexChange)="onTabChange($event)" [selectedIndex]="activeTab">
     <!-- Users Tab -->
-    <mat-tab label="User Management">
+    <mat-tab [label]="'ADMIN.USER_MANAGEMENT' | translate">
       <div class="tab-content">
         <div class="tab-header">
-          <h2>Users</h2>
+          <h2>{{ 'ADMIN.USERS' | translate }}</h2>
           <button mat-raised-button color="primary" (click)="openUserForm()">
-            <mat-icon>person_add</mat-icon> Add User
+            <mat-icon>person_add</mat-icon> {{ 'ADMIN.ADD_USER' | translate }}
           </button>
         </div>
 
         <!-- User Form -->
         <mat-card *ngIf="showUserForm" class="form-card">
           <mat-card-header>
-            <mat-card-title>{{ editingUser ? 'Edit User' : 'New User' }}</mat-card-title>
+            <mat-card-title>{{ editingUser ? ('ADMIN.EDIT_USER' | translate) : ('ADMIN.NEW_USER' | translate) }}</mat-card-title>
             <button mat-icon-button (click)="showUserForm = false"><mat-icon>close</mat-icon></button>
           </mat-card-header>
           <mat-card-content>
             <form [formGroup]="userForm" (ngSubmit)="saveUser()" class="admin-form">
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Username</mat-label>
+                <mat-label>{{ 'ADMIN.USERNAME' | translate }}</mat-label>
                 <input matInput formControlName="username" [readonly]="!!editingUser">
-                <mat-error>Username is required</mat-error>
+                <mat-error>{{ 'ADMIN.USERNAME_REQUIRED' | translate }}</mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline" class="full-width" *ngIf="!editingUser">
-                <mat-label>Password</mat-label>
+                <mat-label>{{ 'ADMIN.PASSWORD' | translate }}</mat-label>
                 <input matInput formControlName="password" type="password">
-                <mat-error>Password must be at least 6 characters</mat-error>
+                <mat-error>{{ 'ADMIN.PASSWORD_MIN' | translate }}</mat-error>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Role</mat-label>
+                <mat-label>{{ 'ADMIN.ROLE' | translate }}</mat-label>
                 <mat-select formControlName="role">
                   <mat-option *ngFor="let r of roleOptions" [value]="r">{{ r | titlecase }}</mat-option>
                 </mat-select>
               </mat-form-field>
 
               <mat-form-field appearance="outline">
-                <mat-label>Locale</mat-label>
+                <mat-label>{{ 'ADMIN.LOCALE' | translate }}</mat-label>
                 <input matInput formControlName="locale">
               </mat-form-field>
 
               <div class="form-actions">
-                <button mat-button type="button" (click)="showUserForm = false">Cancel</button>
+                <button mat-button type="button" (click)="showUserForm = false">{{ 'COMMON.CANCEL' | translate }}</button>
                 <button mat-raised-button color="primary" type="submit"
                         [disabled]="userForm.invalid || isSavingUser">
                   <mat-spinner *ngIf="isSavingUser" diameter="18"></mat-spinner>
-                  <span *ngIf="!isSavingUser">{{ editingUser ? 'Update' : 'Create' }}</span>
+                  <span *ngIf="!isSavingUser">{{ editingUser ? ('COMMON.UPDATE' | translate) : ('COMMON.CREATE' | translate) }}</span>
                 </button>
               </div>
             </form>
@@ -63,40 +63,40 @@
         </div>
         <div class="error-container" *ngIf="usersError">
           <p>{{ usersError }}</p>
-          <button mat-raised-button (click)="loadUsers()">Retry</button>
+          <button mat-raised-button (click)="loadUsers()">{{ 'COMMON.RETRY' | translate }}</button>
         </div>
         <div class="empty-state" *ngIf="!usersLoading && !usersError && users.length === 0">
           <mat-icon>people</mat-icon>
-          <p>No users found.</p>
+          <p>{{ 'ADMIN.NO_USERS' | translate }}</p>
         </div>
 
         <table mat-table [dataSource]="users" class="full-width"
                *ngIf="!usersLoading && users.length > 0">
           <ng-container matColumnDef="username">
-            <th mat-header-cell *matHeaderCellDef>Username</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.USERNAME' | translate }}</th>
             <td mat-cell *matCellDef="let u">{{ u.username }}</td>
           </ng-container>
           <ng-container matColumnDef="role">
-            <th mat-header-cell *matHeaderCellDef>Role</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.ROLE' | translate }}</th>
             <td mat-cell *matCellDef="let u">
               <span class="role-badge role-{{ u.role }}">{{ u.role | titlecase }}</span>
             </td>
           </ng-container>
           <ng-container matColumnDef="locale">
-            <th mat-header-cell *matHeaderCellDef>Locale</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'ADMIN.LOCALE' | translate }}</th>
             <td mat-cell *matCellDef="let u">{{ u.locale }}</td>
           </ng-container>
           <ng-container matColumnDef="created_at">
-            <th mat-header-cell *matHeaderCellDef>Created</th>
-            <td mat-cell *matCellDef="let u">{{ u.created_at | date:'short' }}</td>
+            <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.CREATED' | translate }}</th>
+            <td mat-cell *matCellDef="let u">{{ u.created_at | localDate }}</td>
           </ng-container>
           <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.ACTIONS' | translate }}</th>
             <td mat-cell *matCellDef="let u">
-              <button mat-icon-button (click)="openUserForm(u)" matTooltip="Edit">
+              <button mat-icon-button (click)="openUserForm(u)" [matTooltip]="'COMMON.EDIT' | translate">
                 <mat-icon>edit</mat-icon>
               </button>
-              <button mat-icon-button (click)="deleteUser(u)" matTooltip="Delete" color="warn">
+              <button mat-icon-button (click)="deleteUser(u)" [matTooltip]="'COMMON.DELETE' | translate" color="warn">
                 <mat-icon>delete</mat-icon>
               </button>
             </td>
@@ -108,43 +108,43 @@
     </mat-tab>
 
     <!-- Violation Rules Tab -->
-    <mat-tab label="Violation Rules">
+    <mat-tab [label]="'ADMIN.VIOLATION_RULES' | translate">
       <div class="tab-content">
         <div class="tab-header">
-          <h2>Violation Rules</h2>
+          <h2>{{ 'ADMIN.VIOLATION_RULES' | translate }}</h2>
           <button mat-raised-button color="primary" (click)="openRuleForm()">
-            <mat-icon>add</mat-icon> Add Rule
+            <mat-icon>add</mat-icon> {{ 'ADMIN.ADD_RULE' | translate }}
           </button>
         </div>
 
         <mat-card *ngIf="showRuleForm" class="form-card">
           <mat-card-header>
-            <mat-card-title>{{ editingRule ? 'Edit Rule' : 'New Rule' }}</mat-card-title>
+            <mat-card-title>{{ editingRule ? ('ADMIN.EDIT_RULE' | translate) : ('ADMIN.NEW_RULE' | translate) }}</mat-card-title>
             <button mat-icon-button (click)="showRuleForm = false"><mat-icon>close</mat-icon></button>
           </mat-card-header>
           <mat-card-content>
             <form [formGroup]="ruleForm" (ngSubmit)="saveRule()" class="admin-form">
               <mat-form-field appearance="outline">
-                <mat-label>Rule Type</mat-label>
+                <mat-label>{{ 'ADMIN.RULE_TYPE' | translate }}</mat-label>
                 <mat-select formControlName="rule_type">
                   <mat-option *ngFor="let t of ruleTypes" [value]="t">{{ t }}</mat-option>
                 </mat-select>
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Severity</mat-label>
+                <mat-label>{{ 'ADMIN.SEVERITY' | translate }}</mat-label>
                 <mat-select formControlName="severity">
                   <mat-option *ngFor="let s of severityOptions" [value]="s">{{ s | titlecase }}</mat-option>
                 </mat-select>
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Rule Config (JSON)</mat-label>
+                <mat-label>{{ 'ADMIN.RULE_CONFIG' | translate }}</mat-label>
                 <textarea matInput formControlName="rule_config" rows="3"></textarea>
               </mat-form-field>
-              <mat-slide-toggle formControlName="is_active">Active</mat-slide-toggle>
+              <mat-slide-toggle formControlName="is_active">{{ 'COMMON.ACTIVE' | translate }}</mat-slide-toggle>
               <div class="form-actions">
-                <button mat-button type="button" (click)="showRuleForm = false">Cancel</button>
+                <button mat-button type="button" (click)="showRuleForm = false">{{ 'COMMON.CANCEL' | translate }}</button>
                 <button mat-raised-button color="primary" type="submit"
-                        [disabled]="ruleForm.invalid || isSavingRule">Save</button>
+                        [disabled]="ruleForm.invalid || isSavingRule">{{ 'COMMON.SAVE' | translate }}</button>
               </div>
             </form>
           </mat-card-content>
@@ -152,13 +152,13 @@
 
         <div class="loading-container" *ngIf="rulesLoading"><mat-spinner diameter="32"></mat-spinner></div>
         <div class="empty-state" *ngIf="!rulesLoading && violationRules.length === 0">
-          <mat-icon>gavel</mat-icon><p>No violation rules configured.</p>
+          <mat-icon>gavel</mat-icon><p>{{ 'ADMIN.NO_RULES' | translate }}</p>
         </div>
         <mat-list *ngIf="!rulesLoading && violationRules.length > 0">
           <mat-list-item *ngFor="let rule of violationRules">
             <mat-icon matListItemIcon>{{ rule.is_active ? 'check_circle' : 'block' }}</mat-icon>
             <span matListItemTitle>{{ rule.rule_type }} - {{ rule.severity | titlecase }}</span>
-            <span matListItemLine>{{ rule.is_active ? 'Active' : 'Inactive' }}</span>
+            <span matListItemLine>{{ rule.is_active ? ('COMMON.ACTIVE' | translate) : ('COMMON.INACTIVE' | translate) }}</span>
             <div matListItemMeta>
               <button mat-icon-button (click)="openRuleForm(rule)"><mat-icon>edit</mat-icon></button>
               <button mat-icon-button (click)="deleteRule(rule)" color="warn"><mat-icon>delete</mat-icon></button>
@@ -169,12 +169,12 @@
     </mat-tab>
 
     <!-- Approval Templates Tab -->
-    <mat-tab label="Approval Templates">
+    <mat-tab [label]="'ADMIN.APPROVAL_TEMPLATES' | translate">
       <div class="tab-content">
         <div class="tab-header">
-          <h2>Approval Templates</h2>
+          <h2>{{ 'ADMIN.APPROVAL_TEMPLATES' | translate }}</h2>
           <button mat-raised-button color="primary" (click)="showTemplateForm = !showTemplateForm">
-            <mat-icon>add</mat-icon> Add Template
+            <mat-icon>add</mat-icon> {{ 'ADMIN.ADD_TEMPLATE' | translate }}
           </button>
         </div>
 
@@ -182,35 +182,35 @@
           <mat-card-content>
             <form [formGroup]="templateForm" (ngSubmit)="saveApprovalTemplate()" class="admin-form">
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Name</mat-label>
+                <mat-label>{{ 'ADMIN.TEMPLATE_NAME' | translate }}</mat-label>
                 <input matInput formControlName="name">
-                <mat-error>Name is required</mat-error>
+                <mat-error>{{ 'ADMIN.NAME_REQUIRED' | translate }}</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Description</mat-label>
+                <mat-label>{{ 'COMMON.DESCRIPTION' | translate }}</mat-label>
                 <textarea matInput formControlName="description" rows="2"></textarea>
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Approval Mode</mat-label>
+                <mat-label>{{ 'ADMIN.APPROVAL_MODE' | translate }}</mat-label>
                 <mat-select formControlName="approval_mode">
-                  <mat-option value="joint">Joint (all must approve)</mat-option>
-                  <mat-option value="any">Any (one is enough)</mat-option>
+                  <mat-option value="joint">{{ 'ADMIN.MODE_JOINT' | translate }}</mat-option>
+                  <mat-option value="any">{{ 'ADMIN.MODE_ANY' | translate }}</mat-option>
                 </mat-select>
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Step 1 Approver</mat-label>
+                <mat-label>{{ 'ADMIN.STEP_APPROVER' | translate }}</mat-label>
                 <mat-select formControlName="step_approver_id">
                   <mat-option *ngFor="let u of approverUsers" [value]="u.id">
                     {{ u.username }}
                   </mat-option>
                 </mat-select>
-                <mat-error>An approver is required</mat-error>
-                <mat-hint *ngIf="approverUsers.length === 0">No approver-role users found</mat-hint>
+                <mat-error>{{ 'ADMIN.APPROVER_REQUIRED' | translate }}</mat-error>
+                <mat-hint *ngIf="approverUsers.length === 0">{{ 'ADMIN.NO_APPROVERS' | translate }}</mat-hint>
               </mat-form-field>
               <div class="form-actions">
-                <button mat-button type="button" (click)="showTemplateForm = false">Cancel</button>
+                <button mat-button type="button" (click)="showTemplateForm = false">{{ 'COMMON.CANCEL' | translate }}</button>
                 <button mat-raised-button color="primary" type="submit"
-                        [disabled]="templateForm.invalid || isSavingTemplate">Create</button>
+                        [disabled]="templateForm.invalid || isSavingTemplate">{{ 'COMMON.CREATE' | translate }}</button>
               </div>
             </form>
           </mat-card-content>
@@ -218,13 +218,13 @@
 
         <div class="loading-container" *ngIf="templatesLoading"><mat-spinner diameter="32"></mat-spinner></div>
         <div class="empty-state" *ngIf="!templatesLoading && approvalTemplates.length === 0">
-          <mat-icon>assignment</mat-icon><p>No approval templates.</p>
+          <mat-icon>assignment</mat-icon><p>{{ 'ADMIN.NO_TEMPLATES' | translate }}</p>
         </div>
         <mat-list *ngIf="!templatesLoading && approvalTemplates.length > 0">
           <mat-list-item *ngFor="let t of approvalTemplates">
             <mat-icon matListItemIcon>assignment</mat-icon>
             <span matListItemTitle>{{ t.name }}</span>
-            <span matListItemLine>{{ t.approval_mode | titlecase }} - {{ t.is_active ? 'Active' : 'Inactive' }}</span>
+            <span matListItemLine>{{ t.approval_mode | titlecase }} - {{ t.is_active ? ('COMMON.ACTIVE' | translate) : ('COMMON.INACTIVE' | translate) }}</span>
             <button mat-icon-button matListItemMeta (click)="deleteApprovalTemplate(t)" color="warn">
               <mat-icon>delete</mat-icon>
             </button>
@@ -234,12 +234,12 @@
     </mat-tab>
 
     <!-- Notification Templates Tab -->
-    <mat-tab label="Notification Templates">
+    <mat-tab [label]="'ADMIN.NOTIFICATION_TEMPLATES' | translate">
       <div class="tab-content">
         <div class="tab-header">
-          <h2>Notification Templates</h2>
+          <h2>{{ 'ADMIN.NOTIFICATION_TEMPLATES' | translate }}</h2>
           <button mat-raised-button color="primary" (click)="showNotifForm = !showNotifForm">
-            <mat-icon>add</mat-icon> Add Template
+            <mat-icon>add</mat-icon> {{ 'ADMIN.ADD_NOTIFICATION_TEMPLATE' | translate }}
           </button>
         </div>
 
@@ -247,31 +247,31 @@
           <mat-card-content>
             <form [formGroup]="notifForm" (ngSubmit)="saveNotifTemplate()" class="admin-form">
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Template Key</mat-label>
+                <mat-label>{{ 'ADMIN.TEMPLATE_KEY' | translate }}</mat-label>
                 <input matInput formControlName="template_key">
-                <mat-error>Key is required</mat-error>
+                <mat-error>{{ 'ADMIN.KEY_REQUIRED' | translate }}</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Subject</mat-label>
+                <mat-label>{{ 'ADMIN.SUBJECT' | translate }}</mat-label>
                 <input matInput formControlName="subject">
-                <mat-error>Subject is required</mat-error>
+                <mat-error>{{ 'ADMIN.SUBJECT_REQUIRED' | translate }}</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Body</mat-label>
+                <mat-label>{{ 'ADMIN.BODY' | translate }}</mat-label>
                 <textarea matInput formControlName="body" rows="4"></textarea>
-                <mat-error>Body is required</mat-error>
+                <mat-error>{{ 'ADMIN.BODY_REQUIRED' | translate }}</mat-error>
               </mat-form-field>
               <mat-form-field appearance="outline">
-                <mat-label>Channel</mat-label>
+                <mat-label>{{ 'ADMIN.CHANNEL' | translate }}</mat-label>
                 <mat-select formControlName="channel">
                   <mat-option *ngFor="let c of channelOptions" [value]="c">{{ c | titlecase }}</mat-option>
                 </mat-select>
               </mat-form-field>
-              <mat-slide-toggle formControlName="is_active">Active</mat-slide-toggle>
+              <mat-slide-toggle formControlName="is_active">{{ 'COMMON.ACTIVE' | translate }}</mat-slide-toggle>
               <div class="form-actions">
-                <button mat-button type="button" (click)="showNotifForm = false">Cancel</button>
+                <button mat-button type="button" (click)="showNotifForm = false">{{ 'COMMON.CANCEL' | translate }}</button>
                 <button mat-raised-button color="primary" type="submit"
-                        [disabled]="notifForm.invalid || isSavingNotif">Create</button>
+                        [disabled]="notifForm.invalid || isSavingNotif">{{ 'COMMON.CREATE' | translate }}</button>
               </div>
             </form>
           </mat-card-content>
@@ -279,7 +279,7 @@
 
         <div class="loading-container" *ngIf="notifLoading"><mat-spinner diameter="32"></mat-spinner></div>
         <div class="empty-state" *ngIf="!notifLoading && notifTemplates.length === 0">
-          <mat-icon>notifications</mat-icon><p>No notification templates.</p>
+          <mat-icon>notifications</mat-icon><p>{{ 'ADMIN.NO_NOTIFICATION_TEMPLATES' | translate }}</p>
         </div>
         <mat-list *ngIf="!notifLoading && notifTemplates.length > 0">
           <mat-list-item *ngFor="let t of notifTemplates">
@@ -295,35 +295,86 @@
     </mat-tab>
 
     <!-- System Tab -->
-    <mat-tab label="System">
+    <mat-tab [label]="'ADMIN.SYSTEM' | translate">
       <div class="tab-content">
-        <h2>System Information</h2>
+        <h2>{{ 'ADMIN.SYSTEM_INFO' | translate }}</h2>
         <mat-card class="system-card">
           <mat-card-content>
             <div class="system-info">
               <div class="info-row">
-                <span class="info-label">Application</span>
+                <span class="info-label">{{ 'ADMIN.APPLICATION' | translate }}</span>
                 <span>TalentOps Compliance & Service Desk</span>
               </div>
               <div class="info-row">
-                <span class="info-label">Version</span>
-                <span>0.0.1</span>
+                <span class="info-label">{{ 'ADMIN.VERSION' | translate }}</span>
+                <span>{{ currentVersion || '0.0.1' }}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">Users</span>
+                <span class="info-label">{{ 'ADMIN.USERS' | translate }}</span>
                 <span>{{ users.length }}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">Violation Rules</span>
+                <span class="info-label">{{ 'ADMIN.VIOLATION_RULES' | translate }}</span>
                 <span>{{ violationRules.length }}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">Approval Templates</span>
+                <span class="info-label">{{ 'ADMIN.APPROVAL_TEMPLATES' | translate }}</span>
                 <span>{{ approvalTemplates.length }}</span>
               </div>
               <div class="info-row">
-                <span class="info-label">Notification Templates</span>
+                <span class="info-label">{{ 'ADMIN.NOTIFICATION_TEMPLATES' | translate }}</span>
                 <span>{{ notifTemplates.length }}</span>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- System Update Panel -->
+        <h2>{{ 'ADMIN.SYSTEM_UPDATE' | translate }}</h2>
+        <mat-card class="system-card">
+          <mat-card-content>
+            <div *ngIf="!isElectron" class="update-browser-notice">
+              <mat-icon>info</mat-icon>
+              <span>{{ 'ADMIN.UPDATE_DESKTOP_ONLY' | translate }}</span>
+            </div>
+
+            <div *ngIf="isElectron" class="update-controls">
+              <div class="update-actions">
+                <button mat-raised-button color="primary" (click)="checkForUpdate()"
+                        [disabled]="updaterChecking || updaterApplying || updaterRollingBack">
+                  <mat-spinner *ngIf="updaterChecking" diameter="18"></mat-spinner>
+                  <mat-icon *ngIf="!updaterChecking">system_update</mat-icon>
+                  <span *ngIf="!updaterChecking">{{ 'ADMIN.CHECK_FOR_UPDATE' | translate }}</span>
+                </button>
+
+                <button mat-raised-button color="accent" (click)="applyUpdate()"
+                        [disabled]="!updateAvailable || updaterApplying || updaterRollingBack">
+                  <mat-spinner *ngIf="updaterApplying" diameter="18"></mat-spinner>
+                  <mat-icon *ngIf="!updaterApplying">download</mat-icon>
+                  <span *ngIf="!updaterApplying">{{ 'ADMIN.APPLY_UPDATE' | translate }}</span>
+                </button>
+
+                <button mat-stroked-button color="warn" (click)="rollbackUpdate()"
+                        [disabled]="!rollbackAvailable || updaterRollingBack || updaterApplying">
+                  <mat-spinner *ngIf="updaterRollingBack" diameter="18"></mat-spinner>
+                  <mat-icon *ngIf="!updaterRollingBack">undo</mat-icon>
+                  <span *ngIf="!updaterRollingBack">{{ 'ADMIN.ROLLBACK' | translate }}</span>
+                </button>
+              </div>
+
+              <div *ngIf="updateAvailable" class="update-version-info">
+                <mat-icon color="primary">new_releases</mat-icon>
+                <span>{{ 'ADMIN.UPDATE_AVAILABLE_MSG' | translate:{ version: availableVersion } }}</span>
+              </div>
+
+              <div *ngIf="updaterSuccess" class="update-success">
+                <mat-icon color="primary">check_circle</mat-icon>
+                <span>{{ updaterSuccess }}</span>
+              </div>
+
+              <div *ngIf="updaterError" class="update-error">
+                <mat-icon color="warn">error</mat-icon>
+                <span>{{ updaterError }}</span>
               </div>
             </div>
           </mat-card-content>
@@ -336,6 +387,6 @@
 <!-- Access Denied -->
 <div class="access-denied" *ngIf="!isAdmin">
   <mat-icon>lock</mat-icon>
-  <h2>Access Denied</h2>
-  <p>Admin privileges are required to access this page.</p>
+  <h2>{{ 'ADMIN.ACCESS_DENIED' | translate }}</h2>
+  <p>{{ 'ADMIN.ADMIN_REQUIRED' | translate }}</p>
 </div>

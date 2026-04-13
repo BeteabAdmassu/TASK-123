@@ -6,28 +6,28 @@
   <!-- Loading -->
   <div class="loading-container" *ngIf="isLoading">
     <mat-spinner diameter="48"></mat-spinner>
-    <p>Loading notifications...</p>
+    <p>{{ 'NOTIFICATIONS.LOADING' | translate }}</p>
   </div>
 
   <!-- Error -->
   <div class="error-container" *ngIf="errorMessage && !isLoading">
     <mat-icon color="warn">error_outline</mat-icon>
     <p>{{ errorMessage }}</p>
-    <button mat-raised-button color="primary" (click)="loadNotifications()">Retry</button>
+    <button mat-raised-button color="primary" (click)="loadNotifications()">{{ 'COMMON.RETRY' | translate }}</button>
   </div>
 
   <!-- Empty -->
   <div class="empty-state" *ngIf="!isLoading && !errorMessage && notifications.length === 0">
     <mat-icon>notifications_none</mat-icon>
-    <h3>No notifications</h3>
-    <p>You have no notifications at this time.</p>
+    <h3>{{ 'NOTIFICATIONS.NO_NOTIFICATIONS' | translate }}</h3>
+    <p>{{ 'NOTIFICATIONS.NO_NOTIFICATIONS_HINT' | translate }}</p>
   </div>
 
   <!-- Notifications Table -->
   <div class="table-wrapper" *ngIf="!isLoading && !errorMessage && notifications.length > 0">
     <table mat-table [dataSource]="notifications" class="full-width">
       <ng-container matColumnDef="type">
-        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.TYPE' | translate }}</th>
         <td mat-cell *matCellDef="let n">
           <div class="type-cell">
             <mat-icon>{{ getTypeIcon(n.type) }}</mat-icon>
@@ -37,12 +37,12 @@
       </ng-container>
 
       <ng-container matColumnDef="template_key">
-        <th mat-header-cell *matHeaderCellDef>Template</th>
+        <th mat-header-cell *matHeaderCellDef>{{ 'NOTIFICATIONS.TEMPLATE' | translate }}</th>
         <td mat-cell *matCellDef="let n">{{ n.template_key }}</td>
       </ng-container>
 
       <ng-container matColumnDef="status">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.STATUS' | translate }}</th>
         <td mat-cell *matCellDef="let n">
           <span class="status-badge status-{{ n.status }}">
             <mat-icon class="badge-icon">{{ getStatusIcon(n.status) }}</mat-icon>
@@ -52,28 +52,28 @@
       </ng-container>
 
       <ng-container matColumnDef="created_at">
-        <th mat-header-cell *matHeaderCellDef>Created</th>
-        <td mat-cell *matCellDef="let n">{{ n.created_at | date:'short' }}</td>
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.CREATED' | translate }}</th>
+        <td mat-cell *matCellDef="let n">{{ n.created_at | localDate }}</td>
       </ng-container>
 
       <ng-container matColumnDef="actions">
-        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.ACTIONS' | translate }}</th>
         <td mat-cell *matCellDef="let n">
-          <button mat-icon-button [matMenuTriggerFor]="actionMenu" aria-label="Actions">
+          <button mat-icon-button [matMenuTriggerFor]="actionMenu" [attr.aria-label]="'COMMON.ACTIONS' | translate">
             <mat-icon>more_vert</mat-icon>
           </button>
           <mat-menu #actionMenu="matMenu">
             <button mat-menu-item (click)="markAsRead(n)"
                     *ngIf="n.status === 'pending' || n.status === 'generated'">
-              <mat-icon>mark_email_read</mat-icon> Mark as Read
+              <mat-icon>mark_email_read</mat-icon> {{ 'NOTIFICATIONS.MARK_READ' | translate }}
             </button>
             <button mat-menu-item (click)="markAsAcknowledged(n)"
                     *ngIf="n.status === 'opened'">
-              <mat-icon>done_all</mat-icon> Acknowledge
+              <mat-icon>done_all</mat-icon> {{ 'NOTIFICATIONS.ACKNOWLEDGE' | translate }}
             </button>
             <button mat-menu-item (click)="exportNotification(n)"
                     *ngIf="canExport(n)" [disabled]="isExporting">
-              <mat-icon>file_download</mat-icon> Export
+              <mat-icon>file_download</mat-icon> {{ 'NOTIFICATIONS.EXPORT' | translate }}
             </button>
           </mat-menu>
         </td>

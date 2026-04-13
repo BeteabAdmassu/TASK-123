@@ -53,7 +53,8 @@
     "SERVICE_CATALOG": "Service Catalog",
     "REVIEW_APPROVALS": "Review Approvals",
     "ADMIN_PANEL": "Admin Panel",
-    "NO_ACTIVITY": "No recent activity"
+    "NO_ACTIVITY": "No recent activity",
+    "LOADING": "Loading dashboard..."
   },
   "RECRUITING": {
     "TITLE": "Recruiting Projects",
@@ -71,7 +72,8 @@
     "NO_POSTINGS": "No postings for this project yet.",
     "TITLE_REQUIRED": "Title is required",
     "MAX_CHARS": "Max {{max}} characters",
-    "PROJECT_DESC_PLACEHOLDER": "Project description"
+    "PROJECT_DESC_PLACEHOLDER": "Project description",
+    "LOADING_PROJECT": "Loading project..."
   },
   "POSTING": {
     "TITLE": "Job Posting",
@@ -85,7 +87,8 @@
     "LAST_NAME": "Last Name",
     "EMAIL": "Email",
     "PHONE": "Phone",
-    "INVALID_EMAIL": "Invalid email"
+    "INVALID_EMAIL": "Invalid email",
+    "LOADING": "Loading posting..."
   },
   "CANDIDATE": {
     "TITLE": "Candidate Detail",
@@ -299,7 +302,18 @@
     "APPLICATION": "Application",
     "VERSION": "Version",
     "ACCESS_DENIED": "Access Denied",
-    "ADMIN_REQUIRED": "Admin privileges are required to access this page."
+    "ADMIN_REQUIRED": "Admin privileges are required to access this page.",
+    "SYSTEM_UPDATE": "System Update",
+    "UPDATE_DESKTOP_ONLY": "Update and rollback controls are available in desktop mode only.",
+    "CHECK_FOR_UPDATE": "Check for Update",
+    "APPLY_UPDATE": "Apply Update",
+    "ROLLBACK": "Rollback",
+    "UPDATE_AVAILABLE_MSG": "Version {{version}} is available for installation.",
+    "UPDATE_UP_TO_DATE": "Application is up to date.",
+    "UPDATE_CHECK_FAILED": "Failed to check for updates.",
+    "UPDATE_APPLY_FAILED": "Failed to apply update.",
+    "ROLLBACK_FAILED": "Rollback failed.",
+    "ADMIN_ACCESS_REQUIRED": "Admin access required"
   },
   "RESUME": {
     "TITLE": "Resume Editor",
@@ -345,6 +359,15 @@
     "TITLE": "Geospatial Viewer"
   },
   "MEDIA": {
-    "TITLE": "Media Player"
+    "TITLE": "Media Player",
+    "LOADING": "Loading media library...",
+    "LIBRARY": "Media Library",
+    "NO_ASSETS": "No media assets available.",
+    "SELECT_ASSET": "Select a media asset to start playback.",
+    "SPEED_TOOLTIP": "Playback Speed",
+    "QUALITY_TOOLTIP": "Quality",
+    "SUBTITLES_TOOLTIP": "Subtitles",
+    "PIP_TOOLTIP": "Picture-in-Picture",
+    "PLAYING_AT_SPEED": "Playing at {{speed}}x speed"
   }
 }

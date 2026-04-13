@@ -53,7 +53,8 @@
     "SERVICE_CATALOG": "Catalogo de Servicios",
     "REVIEW_APPROVALS": "Revisar Aprobaciones",
     "ADMIN_PANEL": "Panel de Administracion",
-    "NO_ACTIVITY": "Sin actividad reciente"
+    "NO_ACTIVITY": "Sin actividad reciente",
+    "LOADING": "Cargando tablero..."
   },
   "RECRUITING": {
     "TITLE": "Proyectos de Reclutamiento",
@@ -71,7 +72,8 @@
     "NO_POSTINGS": "No hay publicaciones para este proyecto aun.",
     "TITLE_REQUIRED": "El titulo es requerido",
     "MAX_CHARS": "Maximo {{max}} caracteres",
-    "PROJECT_DESC_PLACEHOLDER": "Descripcion del proyecto"
+    "PROJECT_DESC_PLACEHOLDER": "Descripcion del proyecto",
+    "LOADING_PROJECT": "Cargando proyecto..."
   },
   "POSTING": {
     "TITLE": "Publicacion de Empleo",
@@ -85,7 +87,8 @@
     "LAST_NAME": "Apellido",
     "EMAIL": "Correo Electronico",
     "PHONE": "Telefono",
-    "INVALID_EMAIL": "Correo electronico invalido"
+    "INVALID_EMAIL": "Correo electronico invalido",
+    "LOADING": "Cargando publicacion..."
   },
   "CANDIDATE": {
     "TITLE": "Detalle del Candidato",
@@ -299,7 +302,18 @@
     "APPLICATION": "Aplicacion",
     "VERSION": "Version",
     "ACCESS_DENIED": "Acceso Denegado",
-    "ADMIN_REQUIRED": "Se requieren privilegios de administrador para acceder a esta pagina."
+    "ADMIN_REQUIRED": "Se requieren privilegios de administrador para acceder a esta pagina.",
+    "SYSTEM_UPDATE": "Actualizacion del Sistema",
+    "UPDATE_DESKTOP_ONLY": "Los controles de actualizacion y reversion solo estan disponibles en modo escritorio.",
+    "CHECK_FOR_UPDATE": "Buscar Actualizacion",
+    "APPLY_UPDATE": "Aplicar Actualizacion",
+    "ROLLBACK": "Revertir",
+    "UPDATE_AVAILABLE_MSG": "La version {{version}} esta disponible para instalacion.",
+    "UPDATE_UP_TO_DATE": "La aplicacion esta actualizada.",
+    "UPDATE_CHECK_FAILED": "Error al buscar actualizaciones.",
+    "UPDATE_APPLY_FAILED": "Error al aplicar la actualizacion.",
+    "ROLLBACK_FAILED": "Error al revertir.",
+    "ADMIN_ACCESS_REQUIRED": "Se requiere acceso de administrador"
   },
   "RESUME": {
     "TITLE": "Editor de Curriculum",
@@ -345,6 +359,15 @@
     "TITLE": "Visor Geoespacial"
   },
   "MEDIA": {
-    "TITLE": "Reproductor de Medios"
+    "TITLE": "Reproductor de Medios",
+    "LOADING": "Cargando biblioteca de medios...",
+    "LIBRARY": "Biblioteca de Medios",
+    "NO_ASSETS": "No hay recursos multimedia disponibles.",
+    "SELECT_ASSET": "Seleccione un recurso multimedia para reproducir.",
+    "SPEED_TOOLTIP": "Velocidad de Reproduccion",
+    "QUALITY_TOOLTIP": "Calidad",
+    "SUBTITLES_TOOLTIP": "Subtitulos",
+    "PIP_TOOLTIP": "Imagen en Imagen",
+    "PLAYING_AT_SPEED": "Reproduciendo a velocidad {{speed}}x"
   }
 }

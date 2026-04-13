@@ -1,19 +1,19 @@
 <div class="project-detail-container">
   <button mat-button (click)="goBack()" class="back-button">
-    <mat-icon>arrow_back</mat-icon> Back to Projects
+    <mat-icon>arrow_back</mat-icon> {{ 'RECRUITING.BACK_TO_PROJECTS' | translate }}
   </button>
 
   <!-- Loading -->
   <div class="loading-container" *ngIf="isLoading">
     <mat-spinner diameter="48"></mat-spinner>
-    <p>Loading project...</p>
+    <p>{{ 'RECRUITING.LOADING_PROJECT' | translate }}</p>
   </div>
 
   <!-- Error -->
   <div class="error-container" *ngIf="errorMessage && !isLoading">
     <mat-icon color="warn">error_outline</mat-icon>
     <p>{{ errorMessage }}</p>
-    <button mat-raised-button color="primary" (click)="loadProject()">Retry</button>
+    <button mat-raised-button color="primary" (click)="loadProject()">{{ 'COMMON.RETRY' | translate }}</button>
   </div>
 
   <!-- Project Details -->
@@ -25,7 +25,7 @@
           <span class="status-badge status-{{ project.status }}" *ngIf="!isEditing">{{ project.status }}</span>
         </mat-card-title>
         <div class="header-actions">
-          <button mat-icon-button (click)="toggleEdit()" [matTooltip]="isEditing ? 'Cancel' : 'Edit'">
+          <button mat-icon-button (click)="toggleEdit()" [matTooltip]="isEditing ? ('COMMON.CANCEL' | translate) : ('COMMON.EDIT' | translate)">
             <mat-icon>{{ isEditing ? 'close' : 'edit' }}</mat-icon>
           </button>
         </div>
@@ -33,40 +33,40 @@
       <mat-card-content>
         <!-- View Mode -->
         <div *ngIf="!isEditing">
-          <p class="description">{{ project.description || 'No description provided.' }}</p>
+          <p class="description">{{ project.description || ('RECRUITING.NO_DESCRIPTION' | translate) }}</p>
           <div class="meta-info">
-            <span><strong>Created:</strong> {{ project.created_at | date:'mediumDate' }}</span>
-            <span><strong>Updated:</strong> {{ project.updated_at | date:'mediumDate' }}</span>
+            <span><strong>{{ 'COMMON.CREATED' | translate }}:</strong> {{ project.created_at | localDate }}</span>
+            <span><strong>{{ 'COMMON.UPDATED' | translate }}:</strong> {{ project.updated_at | localDate }}</span>
           </div>
         </div>
 
         <!-- Edit Mode -->
         <form *ngIf="isEditing" [formGroup]="editForm" (ngSubmit)="saveProject()" class="edit-form">
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Title</mat-label>
-            <input matInput formControlName="title" placeholder="Project title">
-            <mat-error *ngIf="editForm.get('title')?.hasError('required')">Title is required</mat-error>
-            <mat-error *ngIf="editForm.get('title')?.hasError('maxlength')">Max 255 characters</mat-error>
+            <mat-label>{{ 'COMMON.TITLE' | translate }}</mat-label>
+            <input matInput formControlName="title">
+            <mat-error *ngIf="editForm.get('title')?.hasError('required')">{{ 'RECRUITING.TITLE_REQUIRED' | translate }}</mat-error>
+            <mat-error *ngIf="editForm.get('title')?.hasError('maxlength')">{{ 'RECRUITING.MAX_CHARS' | translate:{ max: 255 } }}</mat-error>
           </mat-form-field>
 
           <mat-form-field appearance="outline" class="full-width">
-            <mat-label>Description</mat-label>
-            <textarea matInput formControlName="description" rows="4" placeholder="Project description"></textarea>
+            <mat-label>{{ 'COMMON.DESCRIPTION' | translate }}</mat-label>
+            <textarea matInput formControlName="description" rows="4" [placeholder]="'RECRUITING.PROJECT_DESC_PLACEHOLDER' | translate"></textarea>
           </mat-form-field>
 
           <mat-form-field appearance="outline">
-            <mat-label>Status</mat-label>
+            <mat-label>{{ 'COMMON.STATUS' | translate }}</mat-label>
             <mat-select formControlName="status">
               <mat-option *ngFor="let s of statusOptions" [value]="s">{{ s | titlecase }}</mat-option>
             </mat-select>
           </mat-form-field>
 
           <div class="form-actions">
-            <button mat-button type="button" (click)="toggleEdit()">Cancel</button>
+            <button mat-button type="button" (click)="toggleEdit()">{{ 'COMMON.CANCEL' | translate }}</button>
             <button mat-raised-button color="primary" type="submit"
                     [disabled]="editForm.invalid || isSaving">
               <mat-spinner *ngIf="isSaving" diameter="18" class="inline-spinner"></mat-spinner>
-              <span *ngIf="!isSaving">Save Changes</span>
+              <span *ngIf="!isSaving">{{ 'COMMON.SAVE_CHANGES' | translate }}</span>
             </button>
           </div>
         </form>
@@ -76,9 +76,9 @@
     <!-- Postings Section -->
     <div class="postings-section">
       <div class="section-header">
-        <h2>Job Postings</h2>
+        <h2>{{ 'RECRUITING.JOB_POSTINGS' | translate }}</h2>
         <button mat-raised-button color="primary" (click)="createPosting()">
-          <mat-icon>add</mat-icon> New Posting
+          <mat-icon>add</mat-icon> {{ 'RECRUITING.NEW_POSTING' | translate }}
         </button>
       </div>
 
@@ -88,7 +88,7 @@
 
       <div class="empty-state" *ngIf="!postingsLoading && postings.length === 0">
         <mat-icon>description</mat-icon>
-        <p>No postings for this project yet.</p>
+        <p>{{ 'RECRUITING.NO_POSTINGS' | translate }}</p>
       </div>
 
       <mat-list *ngIf="!postingsLoading && postings.length > 0">
@@ -97,7 +97,7 @@
           <span matListItemTitle>{{ posting.title }}</span>
           <span matListItemLine>
             <span class="status-badge status-{{ posting.status }}">{{ posting.status }}</span>
-            <span class="text-muted"> - {{ posting.created_at | date:'mediumDate' }}</span>
+            <span class="text-muted"> - {{ posting.created_at | localDate }}</span>
           </span>
         </mat-list-item>
       </mat-list>

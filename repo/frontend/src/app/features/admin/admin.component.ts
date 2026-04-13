@@ -4,8 +4,27 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { TranslateService } from '@ngx-translate/core';
 import { ApiService, PaginatedResponse } from '../../core/services/api.service';
 import { AuthService } from '../../core/auth/auth.service';
+
+/** Shape of window.electronAPI.updater (from preload.ts) */
+interface ElectronUpdaterApi {
+  check(): Promise<{ available: boolean; currentVersion?: string; availableVersion?: string }>;
+  apply(): Promise<{ success: boolean }>;
+  rollback(): Promise<{ success: boolean; error?: string }>;
+  hasRollback(): Promise<{ available: boolean }>;
+}
+
+function getElectronUpdater(): ElectronUpdaterApi | null {
+  try {
+    const api = (window as Record<string, unknown>)['electronAPI'] as
+      { updater?: ElectronUpdaterApi } | undefined;
+    return api?.updater ?? null;
+  } catch {
+    return null;
+  }
+}
 
 interface User {
   id: string;
@@ -91,6 +110,18 @@ export class AdminComponent implements OnInit, OnDestroy {
   isSavingNotif = false;
   channelOptions = ['in_app', 'email_export', 'sms_export'];
 
+  // System Updater
+  isElectron = false;
+  updaterChecking = false;
+  updaterApplying = false;
+  updaterRollingBack = false;
+  updateAvailable = false;
+  rollbackAvailable = false;
+  currentVersion = '';
+  availableVersion = '';
+  updaterError = '';
+  updaterSuccess = '';
+
   private destroy$ = new Subject<void>();
 
   constructor(
@@ -98,7 +129,8 @@ export class AdminComponent implements OnInit, OnDestroy {
     private auth: AuthService,
     private fb: FormBuilder,
     private snackBar: MatSnackBar,
-    private router: Router
+    private router: Router,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -144,6 +176,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.loadApprovalTemplates();
     this.loadApproverUsers();
     this.loadNotificationTemplates();
+    this.initUpdater();
   }
 
   ngOnDestroy(): void {
@@ -471,5 +504,85 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.snackBar.open('Failed to delete template', 'Close', { duration: 3000 });
       }
     });
+  }
+
+  // ===== System Updater =====
+
+  private initUpdater(): void {
+    this.isElectron = !!getElectronUpdater();
+    if (this.isElectron) {
+      this.checkRollbackAvailability();
+    }
+  }
+
+  async checkForUpdate(): Promise<void> {
+    const updater = getElectronUpdater();
+    if (!updater) return;
+
+    this.updaterChecking = true;
+    this.updaterError = '';
+    this.updaterSuccess = '';
+
+    try {
+      const result = await updater.check();
+      this.updateAvailable = result.available;
+      this.currentVersion = result.currentVersion || '';
+      this.availableVersion = result.availableVersion || '';
+      if (!result.available) {
+        this.updaterSuccess = this.translate.instant('ADMIN.UPDATE_UP_TO_DATE');
+      }
+    } catch {
+      this.updaterError = this.translate.instant('ADMIN.UPDATE_CHECK_FAILED');
+    } finally {
+      this.updaterChecking = false;
+    }
+  }
+
+  async applyUpdate(): Promise<void> {
+    const updater = getElectronUpdater();
+    if (!updater) return;
+
+    this.updaterApplying = true;
+    this.updaterError = '';
+
+    try {
+      await updater.apply();
+      // App will restart — this line may not execute
+    } catch {
+      this.updaterError = this.translate.instant('ADMIN.UPDATE_APPLY_FAILED');
+      this.updaterApplying = false;
+    }
+  }
+
+  async rollbackUpdate(): Promise<void> {
+    const updater = getElectronUpdater();
+    if (!updater) return;
+
+    this.updaterRollingBack = true;
+    this.updaterError = '';
+
+    try {
+      const result = await updater.rollback();
+      if (!result.success) {
+        this.updaterError = result.error || this.translate.instant('ADMIN.ROLLBACK_FAILED');
+        this.updaterRollingBack = false;
+      }
+      // On success the app restarts
+    } catch {
+      this.updaterError = this.translate.instant('ADMIN.ROLLBACK_FAILED');
+      this.updaterRollingBack = false;
+    }
+  }
+
+  async checkRollbackAvailability(): Promise<void> {
+    const updater = getElectronUpdater();
+    if (!updater) return;
+
+    try {
+      const result = await updater.hasRollback();
+      this.rollbackAvailable = result.available;
+    } catch {
+      this.rollbackAvailable = false;
+    }
   }
 }

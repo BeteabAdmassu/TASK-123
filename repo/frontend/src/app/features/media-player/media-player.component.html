@@ -6,24 +6,24 @@
   <!-- Loading -->
   <div class="loading-container" *ngIf="isLoading">
     <mat-spinner diameter="48"></mat-spinner>
-    <p>Loading media library...</p>
+    <p>{{ 'MEDIA.LOADING' | translate }}</p>
   </div>
 
   <!-- Error -->
   <div class="error-container" *ngIf="errorMessage && !isLoading">
     <mat-icon color="warn">error_outline</mat-icon>
     <p>{{ errorMessage }}</p>
-    <button mat-raised-button color="primary" (click)="loadAssets()">Retry</button>
+    <button mat-raised-button color="primary" (click)="loadAssets()">{{ 'COMMON.RETRY' | translate }}</button>
   </div>
 
   <!-- Main Content -->
   <div class="player-layout" *ngIf="!isLoading && !errorMessage">
     <!-- Asset List -->
     <div class="asset-sidebar">
-      <h3>Media Library</h3>
+      <h3>{{ 'MEDIA.LIBRARY' | translate }}</h3>
       <div class="empty-state-small" *ngIf="assets.length === 0">
         <mat-icon>video_library</mat-icon>
-        <p>No media assets available.</p>
+        <p>{{ 'MEDIA.NO_ASSETS' | translate }}</p>
       </div>
       <mat-list *ngIf="assets.length > 0">
         <mat-list-item *ngFor="let asset of assets"
@@ -44,7 +44,7 @@
     <div class="player-main">
       <div *ngIf="!selectedAsset" class="empty-state">
         <mat-icon>play_circle_outline</mat-icon>
-        <p>Select a media asset to start playback.</p>
+        <p>{{ 'MEDIA.SELECT_ASSET' | translate }}</p>
       </div>
 
       <div *ngIf="selectedAsset" class="player-wrapper">
@@ -80,7 +80,7 @@
           <span class="time-display">{{ formatTime(duration) }}</span>
 
           <!-- Speed Control -->
-          <button mat-icon-button [matMenuTriggerFor]="speedMenu" matTooltip="Playback Speed">
+          <button mat-icon-button [matMenuTriggerFor]="speedMenu" [matTooltip]="'MEDIA.SPEED_TOOLTIP' | translate">
             <mat-icon>speed</mat-icon>
           </button>
           <mat-menu #speedMenu="matMenu">
@@ -92,7 +92,7 @@
           </mat-menu>
 
           <!-- Quality Selector -->
-          <button mat-icon-button [matMenuTriggerFor]="qualityMenu" matTooltip="Quality"
+          <button mat-icon-button [matMenuTriggerFor]="qualityMenu" [matTooltip]="'MEDIA.QUALITY_TOOLTIP' | translate"
                   *ngIf="qualityLevels.length > 0">
             <mat-icon>hd</mat-icon>
           </button>
@@ -105,20 +105,20 @@
           </mat-menu>
 
           <!-- Subtitles -->
-          <button mat-icon-button (click)="toggleSubtitles()" matTooltip="Subtitles"
+          <button mat-icon-button (click)="toggleSubtitles()" [matTooltip]="'MEDIA.SUBTITLES_TOOLTIP' | translate"
                   *ngIf="selectedAsset.subtitle_paths && selectedAsset.subtitle_paths.length > 0">
             <mat-icon>{{ subtitlesEnabled ? 'subtitles' : 'subtitles_off' }}</mat-icon>
           </button>
 
           <!-- PiP -->
-          <button mat-icon-button (click)="togglePiP()" matTooltip="Picture-in-Picture">
+          <button mat-icon-button (click)="togglePiP()" [matTooltip]="'MEDIA.PIP_TOOLTIP' | translate">
             <mat-icon>{{ isPiPActive ? 'picture_in_picture' : 'picture_in_picture_alt' }}</mat-icon>
           </button>
         </div>
 
         <!-- Speed indicator -->
         <div class="speed-indicator" *ngIf="playbackSpeed !== 1.0">
-          Playing at {{ playbackSpeed }}x speed
+          {{ 'MEDIA.PLAYING_AT_SPEED' | translate:{ speed: playbackSpeed } }}
         </div>
       </div>
     </div>

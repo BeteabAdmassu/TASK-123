@@ -56,7 +56,7 @@
 
         <ng-container matColumnDef="created_at">
           <th mat-header-cell *matHeaderCellDef>Created</th>
-          <td mat-cell *matCellDef="let a">{{ a.created_at | date:'short' }}</td>
+          <td mat-cell *matCellDef="let a">{{ a.created_at | localDate }}</td>
         </ng-container>
 
         <ng-container matColumnDef="actions">
@@ -133,7 +133,7 @@
               <span matListItemTitle>Step {{ step.step_order }} - Approver {{ step.approver_id | slice:0:8 }}</span>
               <span matListItemLine>
                 <span class="status-badge status-{{ step.status }}">{{ step.status | titlecase }}</span>
-                <span *ngIf="step.decided_at"> - {{ step.decided_at | date:'short' }}</span>
+                <span *ngIf="step.decided_at"> - {{ step.decided_at | localDate }}</span>
               </span>
               <span matListItemLine *ngIf="step.comment" class="step-comment">{{ step.comment }}</span>
             </mat-list-item>
@@ -181,7 +181,7 @@
             <mat-list-item *ngFor="let entry of auditTrail">
               <mat-icon matListItemIcon>history</mat-icon>
               <span matListItemTitle>{{ entry.action }}</span>
-              <span matListItemLine>{{ entry.created_at | date:'short' }}</span>
+              <span matListItemLine>{{ entry.created_at | localDate }}</span>
             </mat-list-item>
           </mat-list>
         </mat-card-content>

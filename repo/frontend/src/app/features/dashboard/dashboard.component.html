@@ -6,14 +6,14 @@
   <!-- Loading State -->
   <div class="loading-container" *ngIf="isLoading">
     <mat-spinner diameter="48"></mat-spinner>
-    <p>Loading dashboard...</p>
+    <p>{{ 'DASHBOARD.LOADING' | translate }}</p>
   </div>
 
   <!-- Error State -->
   <div class="error-container" *ngIf="errorMessage && !isLoading">
     <mat-icon color="warn">error_outline</mat-icon>
     <p>{{ errorMessage }}</p>
-    <button mat-raised-button color="primary" (click)="loadDashboard()">Retry</button>
+    <button mat-raised-button color="primary" (click)="loadDashboard()">{{ 'COMMON.RETRY' | translate }}</button>
   </div>
 
   <!-- Dashboard Content -->
@@ -79,19 +79,19 @@
           <div class="quick-actions-grid">
             <button mat-stroked-button (click)="navigateTo('/recruiting')">
               <mat-icon>add_circle</mat-icon>
-              New Project
+              {{ 'DASHBOARD.NEW_PROJECT' | translate }}
             </button>
             <button mat-stroked-button (click)="navigateTo('/service-catalog')">
               <mat-icon>category</mat-icon>
-              Service Catalog
+              {{ 'DASHBOARD.SERVICE_CATALOG' | translate }}
             </button>
             <button mat-stroked-button (click)="navigateTo('/approvals')">
               <mat-icon>check_circle</mat-icon>
-              Review Approvals
+              {{ 'DASHBOARD.REVIEW_APPROVALS' | translate }}
             </button>
             <button mat-stroked-button *ngIf="userRole === 'admin'" (click)="navigateTo('/admin')">
               <mat-icon>admin_panel_settings</mat-icon>
-              Admin Panel
+              {{ 'DASHBOARD.ADMIN_PANEL' | translate }}
             </button>
           </div>
         </mat-card-content>
@@ -105,13 +105,13 @@
         <mat-card-content>
           <div *ngIf="recentActivity.length === 0" class="empty-state">
             <mat-icon>history</mat-icon>
-            <p>No recent activity</p>
+            <p>{{ 'DASHBOARD.NO_ACTIVITY' | translate }}</p>
           </div>
           <mat-list *ngIf="recentActivity.length > 0">
             <mat-list-item *ngFor="let activity of recentActivity">
               <mat-icon matListItemIcon>{{ getActivityIcon(activity.entity_type) }}</mat-icon>
               <span matListItemTitle>{{ getActivityLabel(activity) }}</span>
-              <span matListItemLine class="text-muted">{{ activity.created_at | date:'short' }}</span>
+              <span matListItemLine class="text-muted">{{ activity.created_at | localDate }}</span>
             </mat-list-item>
           </mat-list>
         </mat-card-content>
