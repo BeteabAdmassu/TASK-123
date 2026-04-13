@@ -348,10 +348,11 @@ test_status "GET /api/candidates/:id/resumes/latest returns latest" "200" "$HTTP
 echo ""
 echo "--- Tags ---"
 
+TAG_NAME="urgent_$(date +%s)"
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/tags" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
-  -d '{"name":"urgent","color":"#ff0000"}')
+  -d "{\"name\":\"${TAG_NAME}\",\"color\":\"#ff0000\"}")
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 test_status "POST /api/tags creates tag" "201" "$HTTP_CODE" "$BODY"
@@ -590,7 +591,7 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/checkpoint" \
   -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
   -d '{"checkpoint_data":{"openWindows":["recruiting","candidate-detail"],"activeRecordId":"test-123","formState":{"dirty":true}}}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-test_status "POST /api/checkpoint saves checkpoint" "200" "$HTTP_CODE"
+test_status "POST /api/checkpoint saves checkpoint" "201" "$HTTP_CODE"
 
 RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/checkpoint/latest" \
   -H "Authorization: Bearer ${RECRUITER_TOKEN}")

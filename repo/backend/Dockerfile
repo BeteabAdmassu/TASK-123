@@ -1,26 +1,13 @@
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-COPY package.json package-lock.json* ./
-RUN npm install
-
-COPY tsconfig.json ./
-COPY src/ ./src/
-
-RUN npm run build
-
-# Production stage
 FROM node:18-alpine
 
 WORKDIR /app
 
 RUN apk add --no-cache wget
 
-COPY package.json package-lock.json* ./
-RUN npm install --production
-
-COPY --from=builder /app/dist ./dist
+# Copy pre-built artifacts and dependencies
+COPY package.json ./
+COPY node_modules/ ./node_modules/
+COPY dist/ ./dist/
 COPY src/migrations/*.sql ./dist/migrations/
 
 RUN mkdir -p uploads exports/notifications

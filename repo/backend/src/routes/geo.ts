@@ -590,37 +590,24 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // ─── Offline Tile Serving ──────────────────────────────────────────
-  // GET /api/tiles/:z/:x/:y.png — serve offline map tiles from local directory.
+  // GET /api/tiles/:z/:x/:y — serve offline map tiles from local directory.
   // Tiles are pre-populated at data/tiles/{z}/{x}/{y}.png (e.g. from MBTiles export).
+  // The frontend requests /api/tiles/{z}/{x}/{y}.png but Fastify strips the extension
+  // on matching; we accept with or without .png in the :y param.
   interface TileParams {
     z: string;
     x: string;
-    'y.png': string;
+    y: string;
   }
 
-  const tileParamsSchema = {
-    params: {
-      type: 'object' as const,
-      required: ['z', 'x', 'y.png'],
-      properties: {
-        z: { type: 'string', pattern: '^\\d{1,2}$' },
-        x: { type: 'string', pattern: '^\\d{1,6}$' },
-        'y.png': { type: 'string', pattern: '^\\d{1,6}\\.png$' },
-      },
-      additionalProperties: false,
-    },
-  };
-
   fastify.get<{ Params: TileParams }>(
-    '/api/tiles/:z/:x/:y.png',
+    '/api/tiles/:z/:x/:y',
     {
-      schema: tileParamsSchema,
       preHandler: [fastify.authenticate],
     },
     async (request: FastifyRequest<{ Params: TileParams }>, reply: FastifyReply) => {
       const { z, x } = request.params;
-      const yPng = request.params['y.png'];
-      const y = yPng.replace(/\.png$/i, '');
+      const y = request.params.y.replace(/\.png$/i, '');
 
       // Validate numeric to prevent path traversal
       if (!/^\d+$/.test(z) || !/^\d+$/.test(x) || !/^\d+$/.test(y)) {

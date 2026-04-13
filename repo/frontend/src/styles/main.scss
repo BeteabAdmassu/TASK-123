@@ -1,23 +1,5 @@
-@use '@angular/material' as mat;
-
-// ── Custom Theme ──────────────────────────────────────────────────────
-$talentops-primary: mat.define-palette(mat.$indigo-palette, 600);
-$talentops-accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
-$talentops-warn: mat.define-palette(mat.$red-palette);
-
-$talentops-theme: mat.define-light-theme((
-  color: (
-    primary: $talentops-primary,
-    accent: $talentops-accent,
-    warn: $talentops-warn,
-  ),
-  typography: mat.define-typography-config(
-    $font-family: 'Roboto, "Helvetica Neue", sans-serif',
-  ),
-  density: 0,
-));
-
-@include mat.all-component-themes($talentops-theme);
+// TalentOps uses the prebuilt indigo-pink theme from Angular Material
+// (loaded via angular.json styles array). Custom overrides below.
 
 // ── Global Reset & Base ───────────────────────────────────────────────
 *,
@@ -48,7 +30,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 a {
-  color: mat.get-theme-color($talentops-theme, primary);
+  color: #3f51b5;
   text-decoration: none;
 
   &:hover {
@@ -79,37 +61,13 @@ a {
 }
 
 // ── Flex Utilities ────────────────────────────────────────────────────
-.flex-row {
-  display: flex;
-  flex-direction: row;
-}
-
-.flex-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.flex-1 {
-  flex: 1;
-}
-
-.gap-8 {
-  gap: 8px;
-}
-
-.gap-16 {
-  gap: 16px;
-}
-
-.gap-24 {
-  gap: 24px;
-}
+.flex-row { display: flex; flex-direction: row; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.flex-1 { flex: 1; }
+.gap-8 { gap: 8px; }
+.gap-16 { gap: 16px; }
+.gap-24 { gap: 24px; }
 
 // ── Spacing Utilities ─────────────────────────────────────────────────
 .m-0 { margin: 0; }
@@ -138,12 +96,6 @@ a {
 .text-muted { color: rgba(0, 0, 0, 0.54); }
 .text-small { font-size: 12px; }
 .text-bold { font-weight: 500; }
-
-// ── Responsive breakpoints ────────────────────────────────────────────
-$breakpoint-sm: 600px;
-$breakpoint-md: 960px;
-$breakpoint-lg: 1280px;
-$breakpoint-xl: 1920px;
 
 // ── Scrollbar styling ─────────────────────────────────────────────────
 ::-webkit-scrollbar {

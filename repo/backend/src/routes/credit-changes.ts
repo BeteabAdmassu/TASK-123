@@ -64,7 +64,7 @@ export default async function creditChangesRoutes(fastify: FastifyInstance): Pro
           conditions.push(`(cc.requested_by = $${paramIdx} OR EXISTS (
             SELECT 1 FROM approval_requests ar
             JOIN approval_steps ast ON ast.request_id = ar.id
-            WHERE ar.entity_type = 'credit_change' AND ar.entity_id = cc.id::text
+            WHERE ar.entity_type = 'credit_change' AND ar.entity_id = cc.id
             AND ast.approver_id = $${paramIdx}
           ))`);
           params.push(userId);
