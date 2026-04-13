@@ -6,6 +6,8 @@ import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import { ApiService, PaginatedResponse } from '../../core/services/api.service';
 import { AuthService } from '../../core/auth/auth.service';
+import { APPROVAL_TEMPLATES, APPROVALS } from '@contracts';
+import { extractPath } from '@contract-utils';
 
 interface Candidate {
   id: string;
@@ -320,20 +322,20 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
     this.closeContextMenu();
     if (!this.candidate) return;
 
-    // Fetch active approval templates to find a valid template_id
-    this.api.get<{ data: Array<{ id: string; name: string; is_active: boolean }> }>('/approval-templates').pipe(
+    // Fetch active templates via recruiter-accessible endpoint (not admin-only /approval-templates)
+    const templatesPath = extractPath(APPROVAL_TEMPLATES.ACTIVE);
+    this.api.get<{ data: Array<{ id: string; name: string; approval_mode: string }> }>(templatesPath).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (res) => {
         const templates = res?.data || (Array.isArray(res) ? res : []);
-        const active = templates.filter((t: { is_active: boolean }) => t.is_active);
-        if (active.length === 0) {
+        if (templates.length === 0) {
           this.snackBar.open('No active approval templates configured. Contact an administrator.', 'Close', { duration: 5000 });
           return;
         }
 
-        const template = active[0];
-        this.api.post('/approvals', {
+        const template = templates[0];
+        this.api.post(extractPath(APPROVALS.CREATE), {
           template_id: template.id,
           entity_type: 'candidate',
           entity_id: this.candidateId,

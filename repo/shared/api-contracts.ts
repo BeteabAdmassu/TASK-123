@@ -118,6 +118,7 @@ export const CREDIT_CHANGES = {
 // ─── Approval Templates ───────────────────────────────
 export const APPROVAL_TEMPLATES = {
   LIST:   'GET    /approval-templates',
+  ACTIVE: 'GET    /approval-templates/active',
   CREATE: 'POST   /approval-templates',
   DETAIL: 'GET    /approval-templates/:id',
   UPDATE: 'PUT    /approval-templates/:id',

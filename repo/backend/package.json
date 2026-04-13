@@ -2,13 +2,13 @@
   "name": "talentops-backend",
   "version": "1.0.0",
   "description": "TalentOps Compliance & Service Desk - Fastify Backend",
-  "main": "dist/server.js",
+  "main": "dist/backend/src/server.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/backend/src/server.js",
     "dev": "ts-node src/server.ts",
-    "migrate": "node dist/migrations/run.js",
-    "seed": "node dist/migrations/seed.js",
+    "migrate": "node dist/backend/src/migrations/run.js",
+    "seed": "node dist/backend/src/migrations/seed.js",
     "test": "jest --coverage"
   },
   "dependencies": {

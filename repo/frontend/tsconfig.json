@@ -22,7 +22,9 @@
       "@core/*": ["src/app/core/*"],
       "@shared/*": ["src/app/shared/*"],
       "@features/*": ["src/app/features/*"],
-      "@environments/*": ["src/environments/*"]
+      "@environments/*": ["src/environments/*"],
+      "@contracts": ["../shared/api-contracts"],
+      "@contract-utils": ["../shared/contract-utils"]
     },
     "useDefineForClassFields": false,
     "skipLibCheck": true

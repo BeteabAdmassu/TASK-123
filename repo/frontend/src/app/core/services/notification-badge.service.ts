@@ -4,12 +4,10 @@ import { switchMap, catchError } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { ApiService } from './api.service';
 import { AuthService } from '../auth/auth.service';
+import { NOTIFICATIONS } from '@contracts';
+import { extractPath } from '@contract-utils';
 
-/**
- * Endpoint path aligned with shared/api-contracts.ts NOTIFICATIONS.PENDING_COUNT:
- *   GET /notifications/pending-count → { count: number }
- */
-const PENDING_COUNT_PATH = '/notifications/pending-count';
+const PENDING_COUNT_PATH = extractPath(NOTIFICATIONS.PENDING_COUNT);
 
 @Injectable({ providedIn: 'root' })
 export class NotificationBadgeService implements OnDestroy {

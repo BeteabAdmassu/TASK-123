@@ -1,5 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { generateExportFile } from '../services/notification.service';
+import { NOTIFICATIONS } from '../../../shared/api-contracts';
+import { apiPath } from '../../../shared/contract-utils';
 
 interface IdParam {
   id: string;
@@ -154,7 +156,7 @@ export default async function notificationRoutes(fastify: FastifyInstance): Prom
 
   // GET /api/notifications/pending-count - count pending/generated notifications
   fastify.get(
-    '/api/notifications/pending-count',
+    apiPath(NOTIFICATIONS.PENDING_COUNT),
     {
       preHandler: [fastify.authenticate],
     },

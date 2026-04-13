@@ -1,7 +1,8 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { SYSTEM } from '../../../shared/api-contracts';
+import { apiPath } from '../../../shared/contract-utils';
 
-// Path constant aligned with shared/api-contracts.ts SYSTEM.HEALTH
-const HEALTH_PATH = '/api/health';
+const HEALTH_PATH = apiPath(SYSTEM.HEALTH);
 
 export default async function systemRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/health - health check (no auth)

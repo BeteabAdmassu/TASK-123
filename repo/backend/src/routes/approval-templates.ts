@@ -81,6 +81,31 @@ export default async function approvalTemplateRoutes(fastify: FastifyInstance): 
     },
   );
 
+  // GET /api/approval-templates/active - list selectable active templates (any authenticated user)
+  // Least-privilege: returns only id + name of active templates so recruiters can
+  // create approval requests without needing full admin template access.
+  fastify.get(
+    '/api/approval-templates/active',
+    {
+      preHandler: [fastify.authenticate],
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const result = await fastify.db.query(
+          `SELECT id, name, approval_mode
+           FROM approval_templates
+           WHERE is_active = true
+           ORDER BY name ASC`,
+        );
+
+        return reply.status(200).send({ data: result.rows });
+      } catch (err) {
+        fastify.log.error(err, 'Failed to list active approval templates');
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to list active templates' });
+      }
+    },
+  );
+
   // POST /api/approval-templates - create template with steps in transaction
   fastify.post<{ Body: CreateTemplateBody }>(
     '/api/approval-templates',

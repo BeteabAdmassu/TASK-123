@@ -113,6 +113,12 @@ export default async function attachmentRoutes(fastify: FastifyInstance): Promis
           return reply.status(404).send({ error: 'Not Found', message: 'Candidate not found' });
         }
 
+        // Object-level authorization — same check used by list/detail/download/delete
+        const access = await checkCandidateAccess(candidateId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
+
         // Parse multipart file upload
         const data = await request.file();
         if (!data) {
