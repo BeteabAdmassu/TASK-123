@@ -18,6 +18,7 @@ import { AuthGuard } from './guards/auth.guard';
 import { AuthInterceptor } from './interceptors/auth.interceptor';
 import { ErrorInterceptor } from './interceptors/error.interceptor';
 import { ApiService } from './services/api.service';
+import { CheckpointService } from './services/checkpoint.service';
 import { KeyboardService } from './services/keyboard.service';
 import { NotificationBadgeService } from './services/notification-badge.service';
 
@@ -42,6 +43,7 @@ import { NotificationBadgeService } from './services/notification-badge.service'
     AuthService,
     AuthGuard,
     ApiService,
+    CheckpointService,
     KeyboardService,
     NotificationBadgeService,
     {

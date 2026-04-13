@@ -4,6 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { Subject, takeUntil } from 'rxjs';
 
 import { AuthService } from './core/auth/auth.service';
+import { CheckpointService } from './core/services/checkpoint.service';
 import { KeyboardService } from './core/services/keyboard.service';
 import { NotificationBadgeService } from './core/services/notification-badge.service';
 
@@ -33,6 +34,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private authService: AuthService,
+    private checkpointService: CheckpointService,
     private keyboardService: KeyboardService,
     private notificationBadgeService: NotificationBadgeService,
     private translate: TranslateService,
@@ -53,7 +55,16 @@ export class AppComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(user => {
         this.userName = user ? user.name || user.username : '';
+        if (user) {
+          this.checkpointService.startAutoSave();
+        } else {
+          this.checkpointService.stopAutoSave();
+        }
       });
+
+    if (this.authService.isLoggedIn()) {
+      this.checkpointService.tryRestore();
+    }
 
     this.keyboardService.searchTriggered$
       .pipe(takeUntil(this.destroy$))
@@ -98,6 +109,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   logout(): void {
+    this.checkpointService.stopAutoSave();
     this.authService.logout().subscribe(() => {
       this.router.navigate(['/login']);
     });

@@ -1,9 +1,21 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Subject, interval } from 'rxjs';
+import { Subject, interval, timer } from 'rxjs';
 import { takeUntil, debounceTime } from 'rxjs/operators';
 import { ApiService, PaginatedResponse } from '../../core/services/api.service';
+
+export const VOD_ERROR_CODES = {
+  MEDIA_NOT_FOUND: 'MEDIA_NOT_FOUND',
+  SEGMENT_DECODE_FAIL: 'SEGMENT_DECODE_FAIL',
+  MANIFEST_PARSE_ERROR: 'MANIFEST_PARSE_ERROR',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+} as const;
+
+export type VodErrorCode = typeof VOD_ERROR_CODES[keyof typeof VOD_ERROR_CODES];
+
+const RETRY_DELAYS_MS = [2000, 5000, 10000] as const;
+const MAX_RETRIES = RETRY_DELAYS_MS.length;
 
 declare const Hls: {
   isSupported(): boolean;
@@ -78,6 +90,12 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
   isPlaying = false;
   isSavingPlayback = false;
 
+  // Error retry state
+  retryCount = 0;
+  isRetrying = false;
+  permanentError = false;
+  lastErrorCode: VodErrorCode | string = '';
+
   private hlsInstance: HlsInstance | null = null;
   private dashPlayer: DashPlayer | null = null;
   private destroy$ = new Subject<void>();
@@ -144,6 +162,7 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
     this.playerError = '';
     this.qualityLevels = [];
     this.selectedQuality = -1;
+    this.resetRetryState();
 
     this.loadPlaybackState(asset.id);
 
@@ -190,7 +209,9 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
 
         this.hlsInstance.on(Hls.Events.ERROR, (_event: unknown, data: Record<string, unknown>) => {
           if (data['fatal']) {
-            this.playerError = `Playback error: ${data['type']} (${data['details']})`;
+            const errorCode = this.classifyError(data);
+            const contextMessage = `${data['type']} (${data['details']})`;
+            this.handlePlayerError(errorCode, contextMessage);
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -221,7 +242,7 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
         });
 
         this.dashPlayer.on('error', () => {
-          this.playerError = 'DASH playback error. Error code: DASH_PLAYBACK_ERROR';
+          this.handlePlayerError(VOD_ERROR_CODES.NETWORK_ERROR, 'DASH playback error');
         });
       } else {
         this.playerError = 'DASH.js player library not available. Error code: DASH_NOT_LOADED';
@@ -239,14 +260,23 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
       this.duration = video.duration || 0;
     };
     video.onerror = () => {
-      const errorCode = video.error?.code || 0;
+      const nativeCode = video.error?.code || 0;
       const errorMessages: Record<number, string> = {
         1: 'MEDIA_ERR_ABORTED: Playback aborted by user',
         2: 'MEDIA_ERR_NETWORK: Network error during download',
         3: 'MEDIA_ERR_DECODE: Error decoding media',
         4: 'MEDIA_ERR_SRC_NOT_SUPPORTED: Media format not supported'
       };
-      this.playerError = errorMessages[errorCode] || `Unknown playback error (code: ${errorCode})`;
+      const contextMessage = errorMessages[nativeCode] || `Unknown playback error (native code: ${nativeCode})`;
+
+      if (nativeCode === 1) {
+        // User-initiated abort -- do not retry
+        this.playerError = `[${VOD_ERROR_CODES.MEDIA_NOT_FOUND}] ${contextMessage}`;
+        return;
+      }
+
+      const vodCode = this.classifyNativeVideoError(nativeCode);
+      this.handlePlayerError(vodCode, contextMessage);
     };
   }
 
@@ -277,6 +307,109 @@ export class MediaPlayerComponent implements OnInit, AfterViewInit, OnDestroy {
       this.videoRef.nativeElement.removeAttribute('src');
       this.videoRef.nativeElement.load();
     }
+  }
+
+  private classifyError(data: Record<string, unknown>): VodErrorCode {
+    const errorType = String(data['type'] || '');
+    const errorDetails = String(data['details'] || '');
+
+    if (errorType === 'networkError' || errorDetails.includes('frag') && errorDetails.includes('Load')) {
+      return VOD_ERROR_CODES.NETWORK_ERROR;
+    }
+    if (errorDetails.includes('manifestParsing') || errorDetails.includes('levelLoad') || errorDetails.includes('manifestLoad')) {
+      return VOD_ERROR_CODES.MANIFEST_PARSE_ERROR;
+    }
+    if (errorType === 'mediaError' || errorDetails.includes('bufferAppend') || errorDetails.includes('Decode')) {
+      return VOD_ERROR_CODES.SEGMENT_DECODE_FAIL;
+    }
+    if (errorDetails.includes('notFound') || errorDetails.includes('404')) {
+      return VOD_ERROR_CODES.MEDIA_NOT_FOUND;
+    }
+    return VOD_ERROR_CODES.NETWORK_ERROR;
+  }
+
+  private classifyNativeVideoError(code: number): VodErrorCode {
+    switch (code) {
+      case 2: return VOD_ERROR_CODES.NETWORK_ERROR;
+      case 3: return VOD_ERROR_CODES.SEGMENT_DECODE_FAIL;
+      case 4: return VOD_ERROR_CODES.MEDIA_NOT_FOUND;
+      default: return VOD_ERROR_CODES.NETWORK_ERROR;
+    }
+  }
+
+  private handlePlayerError(errorCode: VodErrorCode, contextMessage: string): void {
+    this.lastErrorCode = errorCode;
+
+    if (this.retryCount >= MAX_RETRIES) {
+      this.permanentError = true;
+      this.isRetrying = false;
+      this.playerError = `Permanent playback failure [${errorCode}]: ${contextMessage}. All ${MAX_RETRIES} retry attempts exhausted.`;
+      this.snackBar.open(
+        `Playback failed after ${MAX_RETRIES} retries. Error: ${errorCode}`,
+        'Close',
+        { duration: 5000 }
+      );
+      return;
+    }
+
+    const delayMs = RETRY_DELAYS_MS[this.retryCount];
+    this.retryCount++;
+    this.isRetrying = true;
+    this.playerError = `Playback error [${errorCode}]: ${contextMessage}. Retrying in ${delayMs / 1000}s (attempt ${this.retryCount}/${MAX_RETRIES})...`;
+
+    timer(delayMs)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(() => {
+        this.isRetrying = false;
+        this.retryPlayback();
+      });
+  }
+
+  private retryPlayback(): void {
+    if (!this.selectedAsset) {
+      return;
+    }
+
+    this.playerError = '';
+    this.destroyPlayer();
+
+    const savedTime = this.currentTime;
+
+    setTimeout(() => {
+      if (!this.selectedAsset) return;
+
+      const video = this.videoRef?.nativeElement;
+      if (!video) return;
+
+      video.playbackRate = this.playbackSpeed;
+
+      if (this.selectedAsset.format === 'hls') {
+        this.initHls(video, this.selectedAsset.file_path);
+      } else if (this.selectedAsset.format === 'dash') {
+        this.initDash(video, this.selectedAsset.file_path);
+      } else {
+        video.src = this.selectedAsset.file_path;
+      }
+
+      this.setupVideoEventListeners(video);
+      this.setupSubtitles(video, this.selectedAsset);
+      this.startPlaybackSaver();
+
+      if (savedTime > 0) {
+        setTimeout(() => {
+          if (video) {
+            video.currentTime = savedTime;
+          }
+        }, 500);
+      }
+    }, 100);
+  }
+
+  private resetRetryState(): void {
+    this.retryCount = 0;
+    this.isRetrying = false;
+    this.permanentError = false;
+    this.lastErrorCode = '';
   }
 
   // Controls
