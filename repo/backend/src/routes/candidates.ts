@@ -98,6 +98,21 @@ const tagSchema = {
   },
 };
 
+const statusChangeSchema = {
+  body: {
+    type: 'object',
+    required: ['status'],
+    properties: {
+      status: { type: 'string', enum: ['intake', 'screening', 'review', 'approved', 'rejected'] },
+    },
+    additionalProperties: false,
+  },
+};
+
+interface StatusChangeBody {
+  status: string;
+}
+
 const requestMaterialsSchema = {
   body: {
     type: 'object',
@@ -188,6 +203,12 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
         );
         if (postingCheck.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Job posting not found' });
+        }
+
+        // Object-level auth via posting's parent project
+        const access = await checkPostingAccess(fastify.db, postingId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         const ssnEncrypted = ssn ? encryptField(ssn) : null;
@@ -368,6 +389,94 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
         return reply.send(masked);
       } catch (err) {
         fastify.log.error({ err, candidateId: id }, 'Failed to update candidate');
+        return reply.status(500).send({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
+      }
+    }
+  );
+
+  // PATCH /api/candidates/:id/status - change candidate status with required-field validation
+  fastify.patch<{ Params: CandidateParams; Body: StatusChangeBody }>(
+    '/api/candidates/:id/status',
+    { schema: statusChangeSchema, preHandler: [fastify.authorize('admin', 'recruiter')] },
+    async (request: FastifyRequest<{ Params: CandidateParams; Body: StatusChangeBody }>, reply: FastifyReply) => {
+      const { id } = request.params;
+      const { status: newStatus } = request.body;
+
+      try {
+        // Object-level authorization
+        const access = await candidateAccess.checkCandidateAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate\'s resources' });
+        }
+
+        const existing = await fastify.db.query(
+          `SELECT c.*, jp.field_rules FROM candidates c
+           LEFT JOIN job_postings jp ON jp.id = c.job_posting_id
+           WHERE c.id = $1`,
+          [id]
+        );
+
+        if (existing.rows.length === 0) {
+          return reply.status(404).send({ error: 'Not Found', message: 'Candidate not found' });
+        }
+
+        const candidate = existing.rows[0];
+
+        // Required-field validation for advancing beyond intake
+        if (newStatus !== 'intake' && newStatus !== 'rejected') {
+          const missingFields: string[] = [];
+          if (!candidate.email) missingFields.push('email');
+          if (!candidate.phone) missingFields.push('phone');
+
+          // Check posting field_rules for additional required fields
+          const fieldRules = candidate.field_rules;
+          if (fieldRules && fieldRules.requiredFields) {
+            for (const field of fieldRules.requiredFields) {
+              if (field === 'eeoc_disposition' && !candidate.eeoc_disposition) {
+                missingFields.push('eeoc_disposition');
+              }
+              if (field === 'ssn' && !candidate.ssn_encrypted) {
+                missingFields.push('ssn');
+              }
+              if (field === 'dob' && !candidate.dob_encrypted) {
+                missingFields.push('dob');
+              }
+              if (field === 'compensation' && !candidate.compensation_encrypted) {
+                missingFields.push('compensation');
+              }
+            }
+          }
+
+          if (missingFields.length > 0) {
+            return reply.status(400).send({
+              error: 'Bad Request',
+              message: 'Cannot change status: required fields are missing',
+              missing_fields: missingFields,
+            });
+          }
+        }
+
+        const oldStatus = candidate.status;
+
+        const result = await fastify.db.query(
+          `UPDATE candidates SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+          [newStatus, id]
+        );
+
+        await createAuditEntry(
+          fastify.db,
+          'candidate',
+          id,
+          'status_change',
+          request.user.id,
+          { status: oldStatus },
+          { status: newStatus }
+        );
+
+        const masked = maskCandidateRow(result.rows[0]);
+        return reply.send(masked);
+      } catch (err) {
+        fastify.log.error({ err, candidateId: id }, 'Failed to change candidate status');
         return reply.status(500).send({ error: 'Internal Server Error', message: 'An unexpected error occurred' });
       }
     }

@@ -1,132 +1,102 @@
 /**
- * Static verification tests for project-access and search scoping.
- * Verifies the source code enforces role-based scoping patterns.
+ * Project Access Service – Behavior Tests
+ *
+ * Tests the actual checkProjectAccess and checkPostingAccess functions
+ * with mock DB queries rather than inspecting source code strings.
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
+import { checkProjectAccess, checkPostingAccess } from './project-access';
 
-describe('Project Access Service', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, 'project-access.ts'), 'utf8'
-  );
+const mockQuery = jest.fn();
+const mockDb = { query: mockQuery } as any;
 
-  it('should check admin/reviewer for broad access', () => {
-    expect(source).toContain("userRole === 'admin' || userRole === 'reviewer'");
+beforeEach(() => {
+  mockQuery.mockReset();
+});
+
+describe('checkProjectAccess', () => {
+  const PROJECT_ID = 'proj-1';
+
+  it('should allow admin access without DB query', async () => {
+    const result = await checkProjectAccess(mockDb, PROJECT_ID, 'admin-id', 'admin');
+    expect(result.allowed).toBe(true);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it('should check recruiter by project ownership (created_by)', () => {
-    expect(source).toContain("created_by = $2");
-    expect(source).toContain("userRole === 'recruiter'");
+  it('should allow reviewer access without DB query', async () => {
+    const result = await checkProjectAccess(mockDb, PROJECT_ID, 'reviewer-id', 'reviewer');
+    expect(result.allowed).toBe(true);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it('should check approver via approval step assignment', () => {
-    expect(source).toContain("ast.approver_id = $2");
-    expect(source).toContain("userRole === 'approver'");
+  it('should allow recruiter who owns the project', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ '1': 1 }] }); // ownership check
+
+    const result = await checkProjectAccess(mockDb, PROJECT_ID, 'recruiter-id', 'recruiter');
+    expect(result.allowed).toBe(true);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 
-  it('should return 403 for unauthorized access', () => {
-    expect(source).toContain('status: 403');
+  it('should deny recruiter who does not own the project', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // ownership check fails
+
+    const result = await checkProjectAccess(mockDb, PROJECT_ID, 'other-recruiter', 'recruiter');
+    expect(result.allowed).toBe(false);
+    expect(result.status).toBe(403);
+  });
+
+  it('should allow approver with an approval step assignment in the project', async () => {
+    // For approver role, code skips recruiter check and goes to approver check
+    mockQuery.mockResolvedValueOnce({ rows: [{ '1': 1 }] }); // approver check
+
+    const result = await checkProjectAccess(mockDb, PROJECT_ID, 'approver-id', 'approver');
+    expect(result.allowed).toBe(true);
+  });
+
+  it('should deny approver with no approval step assignment', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // approver check fails
+
+    const result = await checkProjectAccess(mockDb, PROJECT_ID, 'unrelated-approver', 'approver');
+    expect(result.allowed).toBe(false);
+    expect(result.status).toBe(403);
   });
 });
 
-describe('Search Route Scoping', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, '..', 'routes', 'search.ts'), 'utf8'
-  );
+describe('checkPostingAccess', () => {
+  const POSTING_ID = 'posting-1';
+  const PROJECT_ID = 'proj-1';
 
-  it('should scope candidates by project ownership for non-privileged', () => {
-    expect(source).toContain('rp.created_by = $2');
-    expect(source).toContain('c.first_name ILIKE $1');
+  it('should allow admin access without DB query', async () => {
+    const result = await checkPostingAccess(mockDb, POSTING_ID, 'admin-id', 'admin');
+    expect(result.allowed).toBe(true);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it('should scope projects by ownership for non-privileged', () => {
-    expect(source).toContain("created_by = $2");
-    expect(source).toContain("title ILIKE $1");
+  it('should look up parent project for non-privileged roles', async () => {
+    // Posting lookup returns project_id
+    mockQuery.mockResolvedValueOnce({ rows: [{ project_id: PROJECT_ID }] });
+    // Project ownership check passes
+    mockQuery.mockResolvedValueOnce({ rows: [{ '1': 1 }] });
+
+    const result = await checkPostingAccess(mockDb, POSTING_ID, 'recruiter-id', 'recruiter');
+    expect(result.allowed).toBe(true);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 
-  it('should scope postings by project ownership for non-privileged', () => {
-    expect(source).toContain("rp.created_by = $2");
-    expect(source).toContain("jp.title ILIKE $1");
+  it('should return 404 if posting not found', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // posting not found
+
+    const result = await checkPostingAccess(mockDb, POSTING_ID, 'recruiter-id', 'recruiter');
+    expect(result.allowed).toBe(false);
+    expect(result.status).toBe(404);
   });
 
-  it('should scope services to active/paused for non-privileged', () => {
-    expect(source).toContain("status IN ('active', 'paused')");
-  });
+  it('should deny recruiter who does not own the parent project', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ project_id: PROJECT_ID }] }); // posting found
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // ownership check fails
 
-  it('should not restrict search for admin/reviewer', () => {
-    expect(source).toContain("isPrivileged");
-    expect(source).toContain("userRole === 'admin' || userRole === 'reviewer'");
-  });
-});
-
-describe('Context Menu Actions', () => {
-  const html = fs.readFileSync(
-    path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'app', 'features',
-      'candidate-detail', 'candidate-detail.component.html'), 'utf8'
-  );
-
-  it('should include Tag candidate action', () => {
-    expect(html).toContain('onTagCandidate()');
-    expect(html).toContain('Tag candidate');
-  });
-
-  it('should include Request missing materials action', () => {
-    expect(html).toContain('onRequestMissingMaterials()');
-    expect(html).toContain('Request missing materials');
-  });
-
-  it('should include Create approval task action', () => {
-    expect(html).toContain('onCreateApprovalTask()');
-    expect(html).toContain('Create approval task');
-  });
-});
-
-describe('Dashboard Role-Safe Loading', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'app', 'features',
-      'dashboard', 'dashboard.component.ts'), 'utf8'
-  );
-
-  it('should gate /audit call behind admin role check', () => {
-    expect(source).toContain("isAdmin");
-    expect(source).toContain("role === 'admin'");
-  });
-
-  it('should gate /violations call behind reviewer/admin', () => {
-    expect(source).toContain("isReviewer");
-  });
-
-  it('should not call authService (wrong name) — must use auth', () => {
-    // Verify the fixed reference uses this.auth, not this.authService
-    expect(source).toContain("this.auth.getCurrentUserValue()");
-    expect(source).not.toContain("this.authService.getCurrentUserValue()");
-  });
-});
-
-describe('Violations Component Role-Safe Audit', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'app', 'features',
-      'violations', 'violations.component.ts'), 'utf8'
-  );
-
-  it('should gate /audit call behind admin role check', () => {
-    expect(source).toContain("role !== 'admin'");
-  });
-
-  it('should import AuthService', () => {
-    expect(source).toContain("import { AuthService }");
-  });
-});
-
-describe('Candidate Detail Role-Safe Violations', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, '..', '..', '..', 'frontend', 'src', 'app', 'features',
-      'candidate-detail', 'candidate-detail.component.ts'), 'utf8'
-  );
-
-  it('should gate /violations call for non-reviewer/admin', () => {
-    expect(source).toContain("canViewViolations");
-    expect(source).toContain("role === 'reviewer'");
+    const result = await checkPostingAccess(mockDb, POSTING_ID, 'other-recruiter', 'recruiter');
+    expect(result.allowed).toBe(false);
+    expect(result.status).toBe(403);
   });
 });

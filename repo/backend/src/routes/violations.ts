@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { scanCandidate } from '../services/violation-scanner';
 import { createAuditEntry } from '../services/audit.service';
+import { checkCandidateAccess } from '../services/candidate-access';
 
 interface IdParam {
   id: string;
@@ -374,6 +375,12 @@ export default async function violationRoutes(fastify: FastifyInstance): Promise
     ) => {
       try {
         const { id } = request.params;
+
+        // Object-level authorization: verify caller has access to this candidate
+        const access = await checkCandidateAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
 
         // Verify candidate exists
         const candidateResult = await fastify.db.query(

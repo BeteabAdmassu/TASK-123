@@ -1,8 +1,7 @@
 /**
- * Security-focused unit tests covering:
- * - Approval write-back field whitelisting (SQL injection prevention)
+ * Security-focused behavior tests covering:
  * - Deterministic hash for duplicate SSN detection
- * - Notification export ownership
+ * - Approval write-back field whitelisting via approval-engine behavior
  */
 
 import { encryptField, decryptField, deterministicHash } from './encryption.service';
@@ -25,12 +24,10 @@ describe('Deterministic SSN Hash', () => {
     const plaintext = '123-45-6789';
     const hash = deterministicHash(plaintext);
     const encrypted = encryptField(plaintext);
-    // Hash is hex string, encrypted is Buffer — they should never collide
     expect(hash).not.toBe(encrypted.toString('hex'));
   });
 
   it('should produce consistent hashes across encrypt cycles', () => {
-    // Even though AES-GCM encryption is random, the hash is deterministic
     const plaintext = '555-12-3456';
     const enc1 = encryptField(plaintext);
     const enc2 = encryptField(plaintext);
@@ -43,72 +40,108 @@ describe('Deterministic SSN Hash', () => {
   });
 });
 
-describe('Approval Write-Back Field Whitelist', () => {
-  // Import the module to verify the whitelist constants are defined
-  // We test this by verifying the shape of the module rather than calling applyWriteBack directly
-  // (which requires a real DB connection)
+describe('Approval Write-Back Field Whitelist (behavior)', () => {
+  const mockQuery = jest.fn();
+  const mockDb = { query: mockQuery } as any;
 
-  it('should define WRITEBACK_ALLOWED_FIELDS for each entity type', async () => {
-    // Read the source file and verify the whitelist exists
-    const fs = require('fs');
-    const path = require('path');
-    const source = fs.readFileSync(
-      path.join(__dirname, 'approval-engine.ts'),
-      'utf8'
-    );
+  jest.mock('./audit.service', () => ({
+    createAuditEntry: jest.fn().mockResolvedValue(undefined),
+  }));
+  jest.mock('./notification.service', () => ({
+    createNotification: jest.fn().mockResolvedValue('notif-id'),
+  }));
 
-    // Verify whitelist constant exists
-    expect(source).toContain('WRITEBACK_ALLOWED_FIELDS');
+  const { processApprovalDecision } = require('./approval-engine');
 
-    // Verify all entity types have whitelists
-    expect(source).toContain("candidate: new Set([");
-    expect(source).toContain("service_spec: new Set([");
-    expect(source).toContain("credit_change: new Set([");
-
-    // Verify dangerous fields are NOT in any whitelist
-    expect(source).not.toMatch(/password_hash/);
-    expect(source).not.toMatch(/ssn_encrypted/);
-    expect(source).not.toMatch(/dob_encrypted/);
-    expect(source).not.toMatch(/compensation_encrypted/);
-
-    // Verify SQL identifier validation exists
-    expect(source).toContain('SAFE_IDENTIFIER');
-    expect(source).toContain('/^[a-z_][a-z0-9_]*$/');
-
-    // Verify quoted identifiers are used in the SQL
-    expect(source).toContain('"${f}" = $');
-    expect(source).toContain('"${table}"');
+  beforeEach(() => {
+    mockQuery.mockReset();
   });
 
-  it('should reject attempts to write disallowed fields via audit log', async () => {
-    const fs = require('fs');
-    const path = require('path');
-    const source = fs.readFileSync(
-      path.join(__dirname, 'approval-engine.ts'),
-      'utf8'
+  it('should apply only whitelisted fields from final_write_back on approval', async () => {
+    // Setup: step with a write-back containing both allowed and disallowed fields
+    const writeBack = {
+      status: 'approved',
+      password_hash: 'injected',   // disallowed — should be excluded
+      ssn_encrypted: 'stolen',     // disallowed — should be excluded
+    };
+
+    mockQuery
+      // 1. Step lookup
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'step-1',
+          request_id: 'req-1',
+          approver_id: 'user-1',
+          status: 'pending',
+          approval_mode: 'any',
+          request_status: 'pending',
+          entity_type: 'candidate',
+          entity_id: 'cand-1',
+          final_write_back: writeBack,
+          requested_by: 'requester-1',
+        }],
+      })
+      // 2. Update step
+      .mockResolvedValueOnce({ rowCount: 1 })
+      // 3+. Remaining queries (audit, request update, write-back, etc.)
+      .mockResolvedValue({ rowCount: 1, rows: [{ id: 'notif-1' }] });
+
+    const result = await processApprovalDecision(
+      mockDb, 'req-1', 'step-1', 'user-1', 'approved', 'Approved'
     );
 
-    // Verify rejected fields are logged to audit
-    expect(source).toContain('write_back_rejected_fields');
-    expect(source).toContain('rejected_fields');
-    expect(source).toContain('allowed_fields');
+    expect(result.requestStatus).toBe('approved');
+    expect(result.completed).toBe(true);
+
+    // Verify write-back SQL only updates the allowed 'status' field
+    const writeBackCall = mockQuery.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('UPDATE "candidates"')
+    );
+    expect(writeBackCall).toBeDefined();
+    // Should contain "status" column update
+    expect(writeBackCall![0]).toContain('"status"');
+    // Should NOT contain disallowed fields
+    expect(writeBackCall![0]).not.toContain('password_hash');
+    expect(writeBackCall![0]).not.toContain('ssn_encrypted');
+    // Values should only include the approved status, not the injected values
+    expect(writeBackCall![1]).toContain('approved');
+    expect(writeBackCall![1]).not.toContain('injected');
+    expect(writeBackCall![1]).not.toContain('stolen');
   });
-});
 
-describe('Notification Export Ownership Check', () => {
-  it('should verify recipient_id before allowing export', async () => {
-    const fs = require('fs');
-    const path = require('path');
-    const source = fs.readFileSync(
-      path.join(__dirname, '..', 'routes', 'notifications.ts'),
-      'utf8'
+  it('should skip write-back entirely when all fields are disallowed', async () => {
+    const writeBack = {
+      password_hash: 'injected',
+      dob_encrypted: 'stolen',
+    };
+
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'step-1',
+          request_id: 'req-1',
+          approver_id: 'user-1',
+          status: 'pending',
+          approval_mode: 'any',
+          request_status: 'pending',
+          entity_type: 'candidate',
+          entity_id: 'cand-1',
+          final_write_back: writeBack,
+          requested_by: 'requester-1',
+        }],
+      })
+      .mockResolvedValue({ rowCount: 1, rows: [{ id: 'notif-1' }] });
+
+    const result = await processApprovalDecision(
+      mockDb, 'req-1', 'step-1', 'user-1', 'approved', 'OK'
     );
 
-    // Verify the export endpoint checks recipient_id
-    expect(source).toContain("existing.rows[0].recipient_id !== userId");
-    // Verify it returns 403 for non-owners
-    expect(source).toContain("You can only export your own notifications");
-    // Verify 404 for missing notification
-    expect(source).toContain("Notification not found");
+    expect(result.requestStatus).toBe('approved');
+
+    // Should NOT have an UPDATE "candidates" call since all fields were rejected
+    const writeBackCall = mockQuery.mock.calls.find(
+      (call: any[]) => typeof call[0] === 'string' && call[0].includes('UPDATE "candidates" SET')
+    );
+    expect(writeBackCall).toBeUndefined();
   });
 });

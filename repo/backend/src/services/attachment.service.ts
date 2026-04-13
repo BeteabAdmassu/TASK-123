@@ -34,13 +34,54 @@ export function validateAttachment(
   return { valid: errors.length === 0, errors };
 }
 
-export function extractMetadata(fileName: string, fileSize: number): AttachmentMetadata {
+/**
+ * Count pages in a PDF buffer by searching for /Type /Page entries
+ * that are not /Type /Pages (the page tree node).
+ */
+function countPdfPages(buffer: Buffer): number | null {
+  try {
+    const content = buffer.toString('binary');
+    // Match /Type /Page but not /Type /Pages
+    const matches = content.match(/\/Type\s*\/Page(?!s)/g);
+    return matches ? matches.length : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Count pages in a DOCX buffer by looking for page break markers
+ * in the raw ZIP content. DOCX is a ZIP containing XML files.
+ * We look for <w:lastRenderedPageBreak/> entries plus 1.
+ * Returns null if unable to determine.
+ */
+function countDocxPages(buffer: Buffer): number | null {
+  try {
+    const content = buffer.toString('binary');
+    const breaks = content.match(/lastRenderedPageBreak/g);
+    return breaks ? breaks.length + 1 : 1; // At least 1 page if valid DOCX
+  } catch {
+    return null;
+  }
+}
+
+export function extractMetadata(fileName: string, fileSize: number, fileBuffer?: Buffer): AttachmentMetadata {
   const ext = path.extname(fileName).toLowerCase().replace('.', '');
+  let pageCount: number | null = null;
+
+  if (fileBuffer) {
+    if (ext === 'pdf') {
+      pageCount = countPdfPages(fileBuffer);
+    } else if (ext === 'docx') {
+      pageCount = countDocxPages(fileBuffer);
+    }
+  }
+
   return {
     fileName,
     fileSize,
     fileType: ext,
-    pageCount: null, // Basic extraction - page count when available
+    pageCount,
   };
 }
 
@@ -64,9 +105,33 @@ export async function runQualityChecks(
   if (candidate.rows.length > 0) {
     const fieldRules = candidate.rows[0].field_rules;
     if (fieldRules && fieldRules.requiredSections) {
-      // Quality check: mark as needing review
-      errors.push('Required sections verification pending manual review');
+      const requiredSections: string[] = fieldRules.requiredSections;
+
+      // Retrieve the attachment file to check content
+      const attachmentRow = await db.query(
+        'SELECT file_path FROM attachments WHERE id = $1',
+        [attachmentId]
+      );
+
+      if (attachmentRow.rows.length > 0 && fs.existsSync(attachmentRow.rows[0].file_path)) {
+        const fileContent = fs.readFileSync(attachmentRow.rows[0].file_path);
+        const textContent = fileContent.toString('binary').toLowerCase();
+
+        for (const section of requiredSections) {
+          const sectionLower = section.toLowerCase();
+          if (!textContent.includes(sectionLower)) {
+            errors.push(`Required section missing: "${section}"`);
+          }
+        }
+      } else {
+        errors.push('Unable to read attachment file for quality check');
+      }
     }
+  }
+
+  // Validate file type is allowed
+  if (!['pdf', 'docx'].includes(fileType)) {
+    errors.push(`Unsupported file type for quality check: ${fileType}`);
   }
 
   const status = errors.length > 0 ? 'failed' : 'passed';

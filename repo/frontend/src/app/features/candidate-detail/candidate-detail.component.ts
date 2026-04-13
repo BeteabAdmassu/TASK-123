@@ -4,6 +4,7 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { TranslateService } from '@ngx-translate/core';
 import { ApiService, PaginatedResponse } from '../../core/services/api.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { APPROVAL_TEMPLATES, APPROVALS } from '@contracts';
@@ -87,12 +88,14 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
   contextMenuY = 0;
   showContextMenu = false;
 
-  contextMenuItems = [
-    { label: 'Tag candidate', action: () => this.onTagCandidate() },
-    { label: 'Request missing materials', action: () => this.onRequestMissingMaterials() },
-    { label: 'Create approval task', action: () => this.onCreateApprovalTask() },
-    { label: 'Copy structured fields', action: () => this.copyStructuredFields() }
-  ];
+  get contextMenuItems() {
+    return [
+      { label: this.translate.instant('CANDIDATE.CONTEXT_TAG'), action: () => this.onTagCandidate() },
+      { label: this.translate.instant('CANDIDATE.CONTEXT_REQUEST_MATERIALS'), action: () => this.onRequestMissingMaterials() },
+      { label: this.translate.instant('CANDIDATE.CONTEXT_CREATE_APPROVAL'), action: () => this.onCreateApprovalTask() },
+      { label: this.translate.instant('CANDIDATE.CONTEXT_COPY_FIELDS'), action: () => this.copyStructuredFields() }
+    ];
+  }
 
   /** Queued action from Electron context-menu query param (executed once candidate loads). */
   private pendingAction: string | null = null;
@@ -105,7 +108,8 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private api: ApiService,
     private auth: AuthService,
-    private snackBar: MatSnackBar
+    private snackBar: MatSnackBar,
+    private translate: TranslateService
   ) {}
 
   ngOnInit(): void {
@@ -156,8 +160,8 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
       },
       error: (err) => {
         this.errorMessage = err.status === 404
-          ? 'Candidate not found.'
-          : 'Failed to load candidate details.';
+          ? this.translate.instant('CANDIDATE.NOT_FOUND')
+          : this.translate.instant('CANDIDATE.LOAD_FAILED');
         this.isLoading = false;
       }
     });
@@ -261,12 +265,14 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
         this.revealedFields[this.fieldToReveal] = res.value;
         this.showPasswordDialog = false;
         this.revealingField = '';
-        this.snackBar.open('Field revealed', 'Close', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.FIELD_REVEALED'), this.translate.instant('COMMON.CANCEL'), { duration: 2000 });
       },
       error: (err) => {
         this.revealingField = '';
-        const msg = err.status === 401 ? 'Invalid password' : 'Failed to reveal field';
-        this.snackBar.open(msg, 'Close', { duration: 3000 });
+        const msg = err.status === 401
+          ? this.translate.instant('CANDIDATE.INVALID_PASSWORD')
+          : this.translate.instant('CANDIDATE.REVEAL_FAILED');
+        this.snackBar.open(msg, this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
       }
     });
   }
@@ -278,7 +284,7 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
 
   getSensitiveDisplay(field: string, maskedValue: string | null): string {
     if (this.revealedFields[field]) return this.revealedFields[field];
-    return maskedValue || 'Required';
+    return maskedValue || this.translate.instant('COMMON.REQUIRED');
   }
 
   isFieldRevealed(field: string): boolean {
@@ -298,11 +304,11 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
         this.loadCandidate();
         this.addingTag = false;
         this.showTagMenu = false;
-        this.snackBar.open('Tag added', 'Close', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.TAG_ADDED'), this.translate.instant('COMMON.CANCEL'), { duration: 2000 });
       },
       error: () => {
         this.addingTag = false;
-        this.snackBar.open('Failed to add tag', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.TAG_ADD_FAILED'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
       }
     });
   }
@@ -313,10 +319,10 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: () => {
         this.loadCandidate();
-        this.snackBar.open('Tag removed', 'Close', { duration: 2000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.TAG_REMOVED'), this.translate.instant('COMMON.CANCEL'), { duration: 2000 });
       },
       error: () => {
-        this.snackBar.open('Failed to remove tag', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.TAG_REMOVE_FAILED'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
       }
     });
   }
@@ -351,22 +357,23 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
     if (!this.candidate) return;
 
     const missingFields: string[] = [];
-    if (this.isMissing(this.candidate.email)) missingFields.push('email address');
-    if (this.isMissing(this.candidate.phone)) missingFields.push('phone number');
-    if (this.attachments.length === 0) missingFields.push('resume/attachments');
+    if (this.isMissing(this.candidate.email)) missingFields.push(this.translate.instant('CANDIDATE.FIELD_EMAIL_ADDRESS'));
+    if (this.isMissing(this.candidate.phone)) missingFields.push(this.translate.instant('CANDIDATE.FIELD_PHONE_NUMBER'));
+    if (this.attachments.length === 0) missingFields.push(this.translate.instant('CANDIDATE.FIELD_RESUME_ATTACHMENTS'));
 
+    const candidateName = `${this.candidate.first_name} ${this.candidate.last_name}`;
     const message = missingFields.length > 0
-      ? `Please provide the following missing materials for candidate ${this.candidate.first_name} ${this.candidate.last_name}: ${missingFields.join(', ')}.`
-      : `Please review and provide any outstanding materials for candidate ${this.candidate.first_name} ${this.candidate.last_name}.`;
+      ? this.translate.instant('CANDIDATE.MATERIALS_REQUEST_MSG', { name: candidateName, fields: missingFields.join(', ') })
+      : this.translate.instant('CANDIDATE.MATERIALS_REVIEW_MSG', { name: candidateName });
 
     this.api.post(`/candidates/${this.candidateId}/request-materials`, {
       message
     }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
-        this.snackBar.open('Material request sent', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.MATERIAL_REQUEST_SENT'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
       },
       error: () => {
-        this.snackBar.open('Failed to send material request', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.MATERIAL_REQUEST_FAILED'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
       }
     });
   }
@@ -383,7 +390,7 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
       next: (res) => {
         const templates = res?.data || (Array.isArray(res) ? res : []);
         if (templates.length === 0) {
-          this.snackBar.open('No active approval templates configured. Contact an administrator.', 'Close', { duration: 5000 });
+          this.snackBar.open(this.translate.instant('CANDIDATE.NO_TEMPLATES'), this.translate.instant('COMMON.CANCEL'), { duration: 5000 });
           return;
         }
 
@@ -395,15 +402,15 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
           final_write_back: { status: 'approved' }
         }).pipe(takeUntil(this.destroy$)).subscribe({
           next: () => {
-            this.snackBar.open('Approval task created', 'Close', { duration: 3000 });
+            this.snackBar.open(this.translate.instant('CANDIDATE.APPROVAL_CREATED'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
           },
           error: () => {
-            this.snackBar.open('Failed to create approval task', 'Close', { duration: 3000 });
+            this.snackBar.open(this.translate.instant('CANDIDATE.APPROVAL_CREATE_FAILED'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
           }
         });
       },
       error: () => {
-        this.snackBar.open('Failed to load approval templates', 'Close', { duration: 3000 });
+        this.snackBar.open(this.translate.instant('CANDIDATE.TEMPLATES_LOAD_FAILED'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
       }
     });
   }
@@ -412,20 +419,55 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
     this.closeContextMenu();
     if (!this.candidate) return;
 
+    const na = this.translate.instant('COMMON.NA');
     const lines = [
-      `Name: ${this.candidate.first_name} ${this.candidate.last_name}`,
-      `Email: ${this.candidate.email || 'N/A'}`,
-      `Phone: ${this.candidate.phone || 'N/A'}`,
-      `Status: ${this.candidate.status}`
+      `${this.translate.instant('CANDIDATE.CLIPBOARD_NAME')}: ${this.candidate.first_name} ${this.candidate.last_name}`,
+      `${this.translate.instant('CANDIDATE.CLIPBOARD_EMAIL')}: ${this.candidate.email || na}`,
+      `${this.translate.instant('CANDIDATE.CLIPBOARD_PHONE')}: ${this.candidate.phone || na}`,
+      `${this.translate.instant('CANDIDATE.CLIPBOARD_STATUS')}: ${this.candidate.status}`
     ];
     const text = lines.join('\n');
 
     try {
       await navigator.clipboard.writeText(text);
-      this.snackBar.open('Candidate details copied to clipboard', 'Close', { duration: 2000 });
+      this.snackBar.open(this.translate.instant('CANDIDATE.COPIED_TO_CLIPBOARD'), this.translate.instant('COMMON.CANCEL'), { duration: 2000 });
     } catch {
-      this.snackBar.open('Failed to copy to clipboard', 'Close', { duration: 3000 });
+      this.snackBar.open(this.translate.instant('CANDIDATE.COPY_FAILED'), this.translate.instant('COMMON.CANCEL'), { duration: 3000 });
     }
+  }
+
+  statusChanging = false;
+  statusError = '';
+  candidateStatuses = ['intake', 'screening', 'review', 'approved', 'rejected'];
+
+  changeStatus(newStatus: string): void {
+    if (!this.candidate || this.statusChanging) return;
+    this.statusChanging = true;
+    this.statusError = '';
+
+    this.api.patch<Candidate>(`/candidates/${this.candidateId}/status`, { status: newStatus }).pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (updated) => {
+        this.candidate = updated;
+        this.statusChanging = false;
+        const msg = this.translate.instant('CANDIDATE.STATUS_CHANGED', { status: newStatus });
+        this.snackBar.open(msg, this.translate.instant('COMMON.CANCEL'), { duration: 2000 });
+      },
+      error: (err) => {
+        this.statusChanging = false;
+        if (err.status === 400 && err.error?.missing_fields) {
+          this.statusError = this.translate.instant('CANDIDATE.STATUS_ERROR_MISSING', {
+            fields: err.error.missing_fields.join(', ')
+          });
+        } else if (err.status === 403) {
+          this.statusError = this.translate.instant('CANDIDATE.STATUS_ERROR_FORBIDDEN');
+        } else {
+          this.statusError = this.translate.instant('CANDIDATE.STATUS_ERROR_GENERIC');
+        }
+        this.snackBar.open(this.statusError, this.translate.instant('COMMON.CANCEL'), { duration: 5000 });
+      }
+    });
   }
 
   goBack(): void {

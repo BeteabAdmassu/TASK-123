@@ -9,6 +9,7 @@ import {
   ensureUploadDir,
 } from '../services/attachment.service';
 import { createAuditEntry } from '../services/audit.service';
+import { checkCandidateAccess } from '../services/candidate-access';
 
 interface CandidateIdParams {
   candidateId: string;
@@ -19,43 +20,6 @@ interface AttachmentIdParams {
 }
 
 export default async function attachmentRoutes(fastify: FastifyInstance): Promise<void> {
-
-  /**
-   * Object-level authorization for candidate resources.
-   * admin/reviewer: broad access.
-   * recruiter: only candidates in postings under projects they own.
-   * approver: only candidates with an approval step assigned to them.
-   */
-  async function checkCandidateAccess(
-    candidateId: string,
-    userId: string,
-    userRole: string
-  ): Promise<{ allowed: boolean; status?: number; message?: string }> {
-    if (userRole === 'admin' || userRole === 'reviewer') {
-      return { allowed: true };
-    }
-    if (userRole === 'recruiter') {
-      const ownerCheck = await fastify.db.query(
-        `SELECT 1 FROM candidates c
-         JOIN job_postings jp ON jp.id = c.job_posting_id
-         JOIN recruiting_projects rp ON rp.id = jp.project_id
-         WHERE c.id = $1 AND rp.created_by = $2`,
-        [candidateId, userId]
-      );
-      if (ownerCheck.rows.length > 0) return { allowed: true };
-    }
-    if (userRole === 'approver') {
-      const approverCheck = await fastify.db.query(
-        `SELECT 1 FROM approval_requests ar
-         JOIN approval_steps ast ON ast.request_id = ar.id
-         WHERE ar.entity_type = 'candidate' AND ar.entity_id = $1 AND ast.approver_id = $2
-         LIMIT 1`,
-        [candidateId, userId]
-      );
-      if (approverCheck.rows.length > 0) return { allowed: true };
-    }
-    return { allowed: false, status: 403, message: 'You do not have access to this candidate\'s resources' };
-  }
 
   // GET /api/candidates/:candidateId/attachments - list attachments
   fastify.get<{ Params: CandidateIdParams }>(
@@ -75,7 +39,7 @@ export default async function attachmentRoutes(fastify: FastifyInstance): Promis
         }
 
         // Object-level authorization
-        const access = await checkCandidateAccess(candidateId, request.user.id, request.user.role);
+        const access = await checkCandidateAccess(fastify.db, candidateId, request.user.id, request.user.role);
         if (!access.allowed) {
           return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
@@ -114,7 +78,7 @@ export default async function attachmentRoutes(fastify: FastifyInstance): Promis
         }
 
         // Object-level authorization — same check used by list/detail/download/delete
-        const access = await checkCandidateAccess(candidateId, request.user.id, request.user.role);
+        const access = await checkCandidateAccess(fastify.db, candidateId, request.user.id, request.user.role);
         if (!access.allowed) {
           return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
@@ -150,8 +114,8 @@ export default async function attachmentRoutes(fastify: FastifyInstance): Promis
         // Write file to disk
         fs.writeFileSync(filePath, fileBuffer);
 
-        // Extract metadata
-        const metadata = extractMetadata(originalFileName, fileSize);
+        // Extract metadata (pass buffer for page count extraction)
+        const metadata = extractMetadata(originalFileName, fileSize, fileBuffer);
 
         // Insert attachment record
         const result = await fastify.db.query(
@@ -224,7 +188,7 @@ export default async function attachmentRoutes(fastify: FastifyInstance): Promis
         }
 
         // Object-level authorization via candidate ownership
-        const access = await checkCandidateAccess(result.rows[0].candidate_id, request.user.id, request.user.role);
+        const access = await checkCandidateAccess(fastify.db, result.rows[0].candidate_id, request.user.id, request.user.role);
         if (!access.allowed) {
           return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
@@ -257,7 +221,7 @@ export default async function attachmentRoutes(fastify: FastifyInstance): Promis
         const attachment = result.rows[0];
 
         // Object-level authorization via candidate ownership
-        const access = await checkCandidateAccess(attachment.candidate_id, request.user.id, request.user.role);
+        const access = await checkCandidateAccess(fastify.db, attachment.candidate_id, request.user.id, request.user.role);
         if (!access.allowed) {
           return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
@@ -307,7 +271,7 @@ export default async function attachmentRoutes(fastify: FastifyInstance): Promis
         const attachment = result.rows[0];
 
         // Object-level authorization via candidate ownership
-        const access = await checkCandidateAccess(attachment.candidate_id, request.user.id, request.user.role);
+        const access = await checkCandidateAccess(fastify.db, attachment.candidate_id, request.user.id, request.user.role);
         if (!access.allowed) {
           return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }

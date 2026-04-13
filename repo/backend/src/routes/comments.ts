@@ -1,4 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { checkCandidateAccess } from '../services/candidate-access';
+import { checkProjectAccess, checkPostingAccess } from '../services/project-access';
 
 interface IdParam {
   id: string;
@@ -14,6 +16,8 @@ interface CreateCommentBody {
   entity_id: string;
   body: string;
 }
+
+const SUPPORTED_ENTITY_TYPES = ['candidate', 'project', 'posting'];
 
 const listCommentsQuerySchema = {
   querystring: {
@@ -40,9 +44,34 @@ const createCommentSchema = {
   },
 };
 
+/**
+ * Check entity-level authorization for comments.
+ * User must have access to the entity they're commenting on.
+ */
+async function checkEntityAccess(
+  db: any,
+  entityType: string,
+  entityId: string,
+  userId: string,
+  userRole: string
+): Promise<{ allowed: boolean; status?: number; message?: string }> {
+  switch (entityType) {
+    case 'candidate':
+      return checkCandidateAccess(db, entityId, userId, userRole);
+    case 'project':
+      return checkProjectAccess(db, entityId, userId, userRole);
+    case 'posting':
+      return checkPostingAccess(db, entityId, userId, userRole);
+    default:
+      // For unsupported entity types, only allow admin
+      if (userRole === 'admin') return { allowed: true };
+      return { allowed: false, status: 403, message: 'You do not have access to comment on this entity' };
+  }
+}
+
 export default async function commentRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/comments?entityType=X&entityId=Y - list comments for an entity
-  fastify.get(
+  fastify.get<{ Querystring: ListCommentsQuery }>(
     '/api/comments',
     {
       preHandler: [fastify.authenticate],
@@ -54,6 +83,14 @@ export default async function commentRoutes(fastify: FastifyInstance): Promise<v
     ) => {
       try {
         const { entityType, entityId } = request.query;
+
+        // Entity-level authorization
+        const access = await checkEntityAccess(
+          fastify.db, entityType, entityId, request.user.id, request.user.role
+        );
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
 
         const result = await fastify.db.query(
           `SELECT c.id, c.entity_type, c.entity_id, c.author_id, c.body, c.created_at,
@@ -74,7 +111,7 @@ export default async function commentRoutes(fastify: FastifyInstance): Promise<v
   );
 
   // POST /api/comments - create comment
-  fastify.post(
+  fastify.post<{ Body: CreateCommentBody }>(
     '/api/comments',
     {
       preHandler: [fastify.authenticate],
@@ -87,6 +124,14 @@ export default async function commentRoutes(fastify: FastifyInstance): Promise<v
       try {
         const { entity_type, entity_id, body } = request.body;
         const authorId = request.user.id;
+
+        // Entity-level authorization
+        const access = await checkEntityAccess(
+          fastify.db, entity_type, entity_id, request.user.id, request.user.role
+        );
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
 
         const result = await fastify.db.query(
           `INSERT INTO comments (entity_type, entity_id, author_id, body)
@@ -118,7 +163,7 @@ export default async function commentRoutes(fastify: FastifyInstance): Promise<v
         const { id } = request.params;
 
         const existing = await fastify.db.query(
-          'SELECT id, author_id FROM comments WHERE id = $1',
+          'SELECT id, author_id, entity_type, entity_id FROM comments WHERE id = $1',
           [id],
         );
 

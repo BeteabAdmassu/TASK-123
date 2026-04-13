@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, tap, map, of } from 'rxjs';
 
 export interface User {
-  id: number;
+  id: string;
   username: string;
   name: string;
   email: string;
@@ -56,8 +56,8 @@ export class AuthService {
     );
   }
 
-  verifyPassword(password: string): Observable<{ valid: boolean }> {
-    return this.http.post<{ valid: boolean }>(`${this.API_URL}/verify-password`, { password });
+  verifyPassword(password: string): Observable<{ verified: boolean }> {
+    return this.http.post<{ verified: boolean }>(`${this.API_URL}/verify-password`, { password });
   }
 
   isLoggedIn(): boolean {

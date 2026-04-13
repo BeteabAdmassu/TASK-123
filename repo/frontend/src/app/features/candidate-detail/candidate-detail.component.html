@@ -1,19 +1,19 @@
 <div class="candidate-detail-container" (contextmenu)="onContextMenu($event)" (click)="closeContextMenu()">
   <button mat-button (click)="goBack()" class="back-button">
-    <mat-icon>arrow_back</mat-icon> Back to Recruiting
+    <mat-icon>arrow_back</mat-icon> {{ 'CANDIDATE.BACK_TO_RECRUITING' | translate }}
   </button>
 
   <!-- Loading -->
   <div class="loading-container" *ngIf="isLoading">
     <mat-spinner diameter="48"></mat-spinner>
-    <p>Loading candidate...</p>
+    <p>{{ 'CANDIDATE.LOADING' | translate }}</p>
   </div>
 
   <!-- Error -->
   <div class="error-container" *ngIf="errorMessage && !isLoading">
     <mat-icon color="warn">error_outline</mat-icon>
     <p>{{ errorMessage }}</p>
-    <button mat-raised-button color="primary" (click)="loadCandidate()">Retry</button>
+    <button mat-raised-button color="primary" (click)="loadCandidate()">{{ 'COMMON.RETRY' | translate }}</button>
   </div>
 
   <!-- Candidate Content -->
@@ -21,62 +21,71 @@
     <!-- Basic Info Block -->
     <mat-card class="info-block">
       <mat-card-header>
-        <mat-card-title>Basic Information</mat-card-title>
+        <mat-card-title>{{ 'CANDIDATE.BASIC_INFO' | translate }}</mat-card-title>
         <span class="status-badge status-{{ candidate.status }}">{{ candidate.status }}</span>
+        <mat-form-field appearance="outline" class="status-select">
+          <mat-label>{{ 'CANDIDATE.CHANGE_STATUS' | translate }}</mat-label>
+          <mat-select [value]="candidate.status" (selectionChange)="changeStatus($event.value)"
+                      [disabled]="statusChanging">
+            <mat-option *ngFor="let s of candidateStatuses" [value]="s">{{ s | titlecase }}</mat-option>
+          </mat-select>
+        </mat-form-field>
+        <mat-spinner *ngIf="statusChanging" diameter="18" class="status-spinner"></mat-spinner>
+        <div *ngIf="statusError" class="status-error">{{ statusError }}</div>
       </mat-card-header>
       <mat-card-content>
         <div class="info-row">
-          <span class="info-label">Name</span>
+          <span class="info-label">{{ 'COMMON.NAME' | translate }}</span>
           <span class="info-value">{{ candidate.first_name }} {{ candidate.last_name }}</span>
         </div>
         <div class="info-row">
-          <span class="info-label">Email</span>
+          <span class="info-label">{{ 'POSTING.EMAIL' | translate }}</span>
           <span class="info-value" [class.missing]="isMissing(candidate.email)">
-            {{ candidate.email || 'Required' }}
+            {{ candidate.email || ('COMMON.REQUIRED' | translate) }}
           </span>
         </div>
         <div class="info-row">
-          <span class="info-label">Phone</span>
+          <span class="info-label">{{ 'POSTING.PHONE' | translate }}</span>
           <span class="info-value" [class.missing]="isMissing(candidate.phone)">
-            {{ candidate.phone || 'Required' }}
+            {{ candidate.phone || ('COMMON.REQUIRED' | translate) }}
           </span>
         </div>
         <div class="info-row">
-          <span class="info-label">EEOC Disposition</span>
+          <span class="info-label">{{ 'CANDIDATE.EEOC_DISPOSITION' | translate }}</span>
           <span class="info-value" [class.missing]="isMissing(candidate.eeoc_disposition)">
-            {{ candidate.eeoc_disposition || 'Not set' }}
+            {{ candidate.eeoc_disposition || ('COMMON.NOT_SET' | translate) }}
           </span>
         </div>
 
         <mat-divider></mat-divider>
 
         <!-- Sensitive Fields -->
-        <h3 class="section-subtitle">Sensitive Information</h3>
+        <h3 class="section-subtitle">{{ 'CANDIDATE.SENSITIVE_INFO' | translate }}</h3>
         <div class="info-row sensitive-row">
-          <span class="info-label">SSN</span>
+          <span class="info-label">{{ 'CANDIDATE.SSN' | translate }}</span>
           <span class="info-value" [class.missing]="isMissing(candidate.ssn_masked) && !isFieldRevealed('ssn')">
             {{ getSensitiveDisplay('ssn', candidate.ssn_masked) }}
           </span>
           <button mat-stroked-button *ngIf="!isFieldRevealed('ssn')" (click)="requestReveal('ssn')" class="reveal-btn">
-            <mat-icon>visibility</mat-icon> Reveal
+            <mat-icon>visibility</mat-icon> {{ 'CANDIDATE.REVEAL' | translate }}
           </button>
         </div>
         <div class="info-row sensitive-row">
-          <span class="info-label">Date of Birth</span>
+          <span class="info-label">{{ 'CANDIDATE.DOB' | translate }}</span>
           <span class="info-value" [class.missing]="isMissing(candidate.dob_masked) && !isFieldRevealed('dob')">
             {{ getSensitiveDisplay('dob', candidate.dob_masked) }}
           </span>
           <button mat-stroked-button *ngIf="!isFieldRevealed('dob')" (click)="requestReveal('dob')" class="reveal-btn">
-            <mat-icon>visibility</mat-icon> Reveal
+            <mat-icon>visibility</mat-icon> {{ 'CANDIDATE.REVEAL' | translate }}
           </button>
         </div>
         <div class="info-row sensitive-row">
-          <span class="info-label">Compensation</span>
+          <span class="info-label">{{ 'CANDIDATE.COMPENSATION' | translate }}</span>
           <span class="info-value" [class.missing]="isMissing(candidate.compensation_masked) && !isFieldRevealed('compensation')">
             {{ getSensitiveDisplay('compensation', candidate.compensation_masked) }}
           </span>
           <button mat-stroked-button *ngIf="!isFieldRevealed('compensation')" (click)="requestReveal('compensation')" class="reveal-btn">
-            <mat-icon>visibility</mat-icon> Reveal
+            <mat-icon>visibility</mat-icon> {{ 'CANDIDATE.REVEAL' | translate }}
           </button>
         </div>
       </mat-card-content>
@@ -86,22 +95,22 @@
     <div class="overlay" *ngIf="showPasswordDialog" (click)="cancelReveal()">
       <mat-card class="password-dialog" (click)="$event.stopPropagation()">
         <mat-card-header>
-          <mat-card-title>Password Verification Required</mat-card-title>
+          <mat-card-title>{{ 'CANDIDATE.PASSWORD_VERIFY_TITLE' | translate }}</mat-card-title>
         </mat-card-header>
         <mat-card-content>
-          <p>Enter your password to reveal the {{ fieldToReveal }} field.</p>
+          <p>{{ 'CANDIDATE.PASSWORD_VERIFY_MSG' | translate:{ field: fieldToReveal } }}</p>
           <form [formGroup]="passwordForm" (ngSubmit)="confirmReveal()">
             <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Password</mat-label>
+              <mat-label>{{ 'CANDIDATE.PASSWORD_LABEL' | translate }}</mat-label>
               <input matInput formControlName="password" type="password" autocomplete="current-password">
-              <mat-error *ngIf="passwordForm.get('password')?.hasError('required')">Password is required</mat-error>
+              <mat-error *ngIf="passwordForm.get('password')?.hasError('required')">{{ 'CANDIDATE.PASSWORD_REQUIRED' | translate }}</mat-error>
             </mat-form-field>
             <div class="dialog-actions">
-              <button mat-button type="button" (click)="cancelReveal()">Cancel</button>
+              <button mat-button type="button" (click)="cancelReveal()">{{ 'COMMON.CANCEL' | translate }}</button>
               <button mat-raised-button color="primary" type="submit"
                       [disabled]="passwordForm.invalid || revealingField !== ''">
                 <mat-spinner *ngIf="revealingField !== ''" diameter="18"></mat-spinner>
-                <span *ngIf="revealingField === ''">Verify</span>
+                <span *ngIf="revealingField === ''">{{ 'CANDIDATE.VERIFY' | translate }}</span>
               </button>
             </div>
           </form>
@@ -112,7 +121,7 @@
     <!-- Resume Viewer Block -->
     <mat-card class="info-block">
       <mat-card-header>
-        <mat-card-title>Resume Versions</mat-card-title>
+        <mat-card-title>{{ 'CANDIDATE.RESUME_VERSIONS' | translate }}</mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <div class="loading-container small" *ngIf="resumesLoading">
@@ -120,7 +129,7 @@
         </div>
         <div class="empty-state-small" *ngIf="!resumesLoading && resumeVersions.length === 0">
           <mat-icon>description</mat-icon>
-          <p>No resume versions yet.</p>
+          <p>{{ 'CANDIDATE.NO_RESUMES' | translate }}</p>
         </div>
         <mat-list *ngIf="!resumesLoading && resumeVersions.length > 0" class="version-list">
           <mat-list-item *ngFor="let v of resumeVersions" (click)="openResume(v)" class="clickable">
@@ -135,7 +144,7 @@
     <!-- Attachments Block -->
     <mat-card class="info-block">
       <mat-card-header>
-        <mat-card-title>Attachments</mat-card-title>
+        <mat-card-title>{{ 'CANDIDATE.ATTACHMENTS' | translate }}</mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <div class="loading-container small" *ngIf="attachmentsLoading">
@@ -143,7 +152,7 @@
         </div>
         <div class="empty-state-small" *ngIf="!attachmentsLoading && attachments.length === 0">
           <mat-icon>attach_file</mat-icon>
-          <p>No attachments.</p>
+          <p>{{ 'CANDIDATE.NO_ATTACHMENTS' | translate }}</p>
         </div>
         <mat-list *ngIf="!attachmentsLoading && attachments.length > 0">
           <mat-list-item *ngFor="let a of attachments">
@@ -161,8 +170,8 @@
     <!-- Tags Block -->
     <mat-card class="info-block">
       <mat-card-header>
-        <mat-card-title>Tags</mat-card-title>
-        <button mat-icon-button (click)="showTagMenu = !showTagMenu" matTooltip="Add tag">
+        <mat-card-title>{{ 'CANDIDATE.TAGS' | translate }}</mat-card-title>
+        <button mat-icon-button (click)="showTagMenu = !showTagMenu" [matTooltip]="'CANDIDATE.ADD_TAG' | translate">
           <mat-icon>add</mat-icon>
         </button>
       </mat-card-header>
@@ -174,10 +183,10 @@
             <mat-icon matChipRemove>cancel</mat-icon>
           </mat-chip-option>
         </mat-chip-listbox>
-        <p *ngIf="!candidate.tags || candidate.tags.length === 0" class="text-muted">No tags assigned.</p>
+        <p *ngIf="!candidate.tags || candidate.tags.length === 0" class="text-muted">{{ 'CANDIDATE.NO_TAGS' | translate }}</p>
 
         <div *ngIf="showTagMenu" class="tag-menu">
-          <p *ngIf="getAvailableTags().length === 0" class="text-muted">No more tags available.</p>
+          <p *ngIf="getAvailableTags().length === 0" class="text-muted">{{ 'CANDIDATE.NO_MORE_TAGS' | translate }}</p>
           <mat-chip-listbox *ngIf="getAvailableTags().length > 0">
             <mat-chip-option *ngFor="let tag of getAvailableTags()" (click)="addTag(tag)"
                       [style.background-color]="tag.color || '#e0e0e0'" [disabled]="addingTag">
@@ -191,7 +200,7 @@
     <!-- Violations Block -->
     <mat-card class="info-block">
       <mat-card-header>
-        <mat-card-title>Violation Flags</mat-card-title>
+        <mat-card-title>{{ 'CANDIDATE.VIOLATION_FLAGS' | translate }}</mat-card-title>
       </mat-card-header>
       <mat-card-content>
         <div class="loading-container small" *ngIf="violationsLoading">
@@ -199,7 +208,7 @@
         </div>
         <div class="empty-state-small" *ngIf="!violationsLoading && violations.length === 0">
           <mat-icon>verified</mat-icon>
-          <p>No violations found.</p>
+          <p>{{ 'CANDIDATE.NO_VIOLATIONS' | translate }}</p>
         </div>
         <mat-list *ngIf="!violationsLoading && violations.length > 0">
           <mat-list-item *ngFor="let v of violations">
@@ -218,23 +227,23 @@
   <div class="context-menu" *ngIf="showContextMenu"
        [style.left.px]="contextMenuX" [style.top.px]="contextMenuY">
     <button mat-menu-item (click)="onTagCandidate()">
-      <mat-icon>label</mat-icon> Tag candidate
+      <mat-icon>label</mat-icon> {{ 'CANDIDATE.CONTEXT_TAG' | translate }}
     </button>
     <button mat-menu-item (click)="onRequestMissingMaterials()">
-      <mat-icon>assignment_late</mat-icon> Request missing materials
+      <mat-icon>assignment_late</mat-icon> {{ 'CANDIDATE.CONTEXT_REQUEST_MATERIALS' | translate }}
     </button>
     <button mat-menu-item (click)="onCreateApprovalTask()">
-      <mat-icon>approval</mat-icon> Create approval task
+      <mat-icon>approval</mat-icon> {{ 'CANDIDATE.CONTEXT_CREATE_APPROVAL' | translate }}
     </button>
     <mat-divider></mat-divider>
     <button mat-menu-item (click)="copyStructuredFields()">
-      <mat-icon>content_copy</mat-icon> Copy structured fields
+      <mat-icon>content_copy</mat-icon> {{ 'CANDIDATE.CONTEXT_COPY_FIELDS' | translate }}
     </button>
     <button mat-menu-item (click)="loadCandidate(); closeContextMenu()">
-      <mat-icon>refresh</mat-icon> Refresh
+      <mat-icon>refresh</mat-icon> {{ 'CANDIDATE.CONTEXT_REFRESH' | translate }}
     </button>
     <button mat-menu-item (click)="goBack(); closeContextMenu()">
-      <mat-icon>arrow_back</mat-icon> Back to List
+      <mat-icon>arrow_back</mat-icon> {{ 'CANDIDATE.CONTEXT_BACK' | translate }}
     </button>
   </div>
 </div>

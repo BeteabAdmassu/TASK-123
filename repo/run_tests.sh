@@ -386,6 +386,33 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/candidates/${CANDIDA
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 test_status "POST /api/candidates/:id/scan triggers violation scan" "200" "$HTTP_CODE"
 
+# ===== Candidate status transition tests =====
+echo ""
+echo "=== Candidate Status Transition ==="
+
+# Status change should fail with 400 when required fields missing (email/phone)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "${BASE_URL}/candidates/${CANDIDATE_ID}/status" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"screening"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | sed '$d')
+# Must be 400 because we haven't set email/phone
+if [ "$HTTP_CODE" = "400" ] && echo "$BODY" | grep -q "missing_fields"; then
+  log_pass "PATCH /api/candidates/:id/status returns 400 with missing_fields for incomplete candidate"
+else
+  log_fail "PATCH /api/candidates/:id/status rejects incomplete status change" \
+           "Expected HTTP 400 with missing_fields in body, got HTTP $HTTP_CODE. Body: $BODY"
+fi
+
+# Status change to rejected should succeed even with missing fields
+RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "${BASE_URL}/candidates/${CANDIDATE_ID}/status" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{"status":"rejected"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "PATCH /api/candidates/:id/status allows rejection with missing fields" "200" "$HTTP_CODE"
+
 # List violations
 RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/violations" \
   -H "Authorization: Bearer ${REVIEWER_TOKEN}")

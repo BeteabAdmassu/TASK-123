@@ -74,7 +74,7 @@ interface IdParam {
 
 export default async function postingRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/projects/:projectId/postings - list postings for a project (paginated)
-  fastify.get(
+  fastify.get<{ Params: ProjectIdParam; Querystring: ListPostingsQuery }>(
     '/api/projects/:projectId/postings',
     {
       preHandler: [fastify.authenticate],
@@ -135,7 +135,7 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
   );
 
   // POST /api/projects/:projectId/postings - create posting
-  fastify.post(
+  fastify.post<{ Params: ProjectIdParam; Body: CreatePostingBody }>(
     '/api/projects/:projectId/postings',
     {
       preHandler: [fastify.authorize('admin', 'recruiter')],
@@ -158,6 +158,12 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
 
         if (projectResult.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Project not found' });
+        }
+
+        // Object-level auth on parent project
+        const access = await checkProjectAccess(fastify.db, projectId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         const result = await fastify.db.query(
@@ -184,7 +190,7 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
   );
 
   // GET /api/postings/:id - get posting detail (object-level auth)
-  fastify.get(
+  fastify.get<{ Params: IdParam }>(
     '/api/postings/:id',
     {
       preHandler: [fastify.authenticate],
@@ -221,7 +227,7 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
   );
 
   // PUT /api/postings/:id - update posting
-  fastify.put(
+  fastify.put<{ Params: IdParam; Body: UpdatePostingBody }>(
     '/api/postings/:id',
     {
       preHandler: [fastify.authorize('admin', 'recruiter')],
@@ -306,7 +312,7 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
   );
 
   // DELETE /api/postings/:id - soft delete (set archived_at = NOW())
-  fastify.delete(
+  fastify.delete<{ Params: IdParam }>(
     '/api/postings/:id',
     {
       preHandler: [fastify.authorize('admin', 'recruiter')],
@@ -317,6 +323,12 @@ export default async function postingRoutes(fastify: FastifyInstance): Promise<v
     ) => {
       try {
         const { id } = request.params;
+
+        // Object-level auth via parent project
+        const access = await checkPostingAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
 
         const result = await fastify.db.query(
           `UPDATE job_postings
