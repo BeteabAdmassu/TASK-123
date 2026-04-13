@@ -1,0 +1,227 @@
+<div class="candidate-detail-container" (contextmenu)="onContextMenu($event)" (click)="closeContextMenu()">
+  <button mat-button (click)="goBack()" class="back-button">
+    <mat-icon>arrow_back</mat-icon> Back to Recruiting
+  </button>
+
+  <!-- Loading -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading candidate...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="error-container" *ngIf="errorMessage && !isLoading">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-raised-button color="primary" (click)="loadCandidate()">Retry</button>
+  </div>
+
+  <!-- Candidate Content -->
+  <div *ngIf="candidate && !isLoading && !errorMessage" class="detail-grid">
+    <!-- Basic Info Block -->
+    <mat-card class="info-block">
+      <mat-card-header>
+        <mat-card-title>Basic Information</mat-card-title>
+        <span class="status-badge status-{{ candidate.status }}">{{ candidate.status }}</span>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="info-row">
+          <span class="info-label">Name</span>
+          <span class="info-value">{{ candidate.first_name }} {{ candidate.last_name }}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Email</span>
+          <span class="info-value" [class.missing]="isMissing(candidate.email)">
+            {{ candidate.email || 'Required' }}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Phone</span>
+          <span class="info-value" [class.missing]="isMissing(candidate.phone)">
+            {{ candidate.phone || 'Required' }}
+          </span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">EEOC Disposition</span>
+          <span class="info-value" [class.missing]="isMissing(candidate.eeoc_disposition)">
+            {{ candidate.eeoc_disposition || 'Not set' }}
+          </span>
+        </div>
+
+        <mat-divider></mat-divider>
+
+        <!-- Sensitive Fields -->
+        <h3 class="section-subtitle">Sensitive Information</h3>
+        <div class="info-row sensitive-row">
+          <span class="info-label">SSN</span>
+          <span class="info-value" [class.missing]="isMissing(candidate.ssn_masked) && !isFieldRevealed('ssn')">
+            {{ getSensitiveDisplay('ssn', candidate.ssn_masked) }}
+          </span>
+          <button mat-stroked-button *ngIf="!isFieldRevealed('ssn')" (click)="requestReveal('ssn')" class="reveal-btn">
+            <mat-icon>visibility</mat-icon> Reveal
+          </button>
+        </div>
+        <div class="info-row sensitive-row">
+          <span class="info-label">Date of Birth</span>
+          <span class="info-value" [class.missing]="isMissing(candidate.dob_masked) && !isFieldRevealed('dob')">
+            {{ getSensitiveDisplay('dob', candidate.dob_masked) }}
+          </span>
+          <button mat-stroked-button *ngIf="!isFieldRevealed('dob')" (click)="requestReveal('dob')" class="reveal-btn">
+            <mat-icon>visibility</mat-icon> Reveal
+          </button>
+        </div>
+        <div class="info-row sensitive-row">
+          <span class="info-label">Compensation</span>
+          <span class="info-value" [class.missing]="isMissing(candidate.compensation_masked) && !isFieldRevealed('compensation')">
+            {{ getSensitiveDisplay('compensation', candidate.compensation_masked) }}
+          </span>
+          <button mat-stroked-button *ngIf="!isFieldRevealed('compensation')" (click)="requestReveal('compensation')" class="reveal-btn">
+            <mat-icon>visibility</mat-icon> Reveal
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Password Verification Dialog -->
+    <div class="overlay" *ngIf="showPasswordDialog" (click)="cancelReveal()">
+      <mat-card class="password-dialog" (click)="$event.stopPropagation()">
+        <mat-card-header>
+          <mat-card-title>Password Verification Required</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <p>Enter your password to reveal the {{ fieldToReveal }} field.</p>
+          <form [formGroup]="passwordForm" (ngSubmit)="confirmReveal()">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Password</mat-label>
+              <input matInput formControlName="password" type="password" autocomplete="current-password">
+              <mat-error *ngIf="passwordForm.get('password')?.hasError('required')">Password is required</mat-error>
+            </mat-form-field>
+            <div class="dialog-actions">
+              <button mat-button type="button" (click)="cancelReveal()">Cancel</button>
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="passwordForm.invalid || revealingField !== ''">
+                <mat-spinner *ngIf="revealingField !== ''" diameter="18"></mat-spinner>
+                <span *ngIf="revealingField === ''">Verify</span>
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Resume Viewer Block -->
+    <mat-card class="info-block">
+      <mat-card-header>
+        <mat-card-title>Resume Versions</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="loading-container small" *ngIf="resumesLoading">
+          <mat-spinner diameter="24"></mat-spinner>
+        </div>
+        <div class="empty-state-small" *ngIf="!resumesLoading && resumeVersions.length === 0">
+          <mat-icon>description</mat-icon>
+          <p>No resume versions yet.</p>
+        </div>
+        <mat-list *ngIf="!resumesLoading && resumeVersions.length > 0" class="version-list">
+          <mat-list-item *ngFor="let v of resumeVersions" (click)="openResume(v)" class="clickable">
+            <mat-icon matListItemIcon>history</mat-icon>
+            <span matListItemTitle>Version {{ v.version_number }}</span>
+            <span matListItemLine>By {{ v.created_by_username }} - {{ v.created_at | date:'short' }}</span>
+          </mat-list-item>
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Attachments Block -->
+    <mat-card class="info-block">
+      <mat-card-header>
+        <mat-card-title>Attachments</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="loading-container small" *ngIf="attachmentsLoading">
+          <mat-spinner diameter="24"></mat-spinner>
+        </div>
+        <div class="empty-state-small" *ngIf="!attachmentsLoading && attachments.length === 0">
+          <mat-icon>attach_file</mat-icon>
+          <p>No attachments.</p>
+        </div>
+        <mat-list *ngIf="!attachmentsLoading && attachments.length > 0">
+          <mat-list-item *ngFor="let a of attachments">
+            <mat-icon matListItemIcon>insert_drive_file</mat-icon>
+            <span matListItemTitle>{{ a.file_name }}</span>
+            <span matListItemLine>
+              {{ a.file_type }} - {{ formatFileSize(a.file_size) }}
+              <span class="quality-badge quality-{{ a.quality_status }}">{{ a.quality_status }}</span>
+            </span>
+          </mat-list-item>
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Tags Block -->
+    <mat-card class="info-block">
+      <mat-card-header>
+        <mat-card-title>Tags</mat-card-title>
+        <button mat-icon-button (click)="showTagMenu = !showTagMenu" matTooltip="Add tag">
+          <mat-icon>add</mat-icon>
+        </button>
+      </mat-card-header>
+      <mat-card-content>
+        <mat-chip-listbox *ngIf="candidate.tags && candidate.tags.length > 0">
+          <mat-chip-option *ngFor="let tag of candidate.tags" [removable]="true" (removed)="removeTag(tag)"
+                    [style.background-color]="tag.color || '#e0e0e0'">
+            {{ tag.name }}
+            <mat-icon matChipRemove>cancel</mat-icon>
+          </mat-chip-option>
+        </mat-chip-listbox>
+        <p *ngIf="!candidate.tags || candidate.tags.length === 0" class="text-muted">No tags assigned.</p>
+
+        <div *ngIf="showTagMenu" class="tag-menu">
+          <p *ngIf="getAvailableTags().length === 0" class="text-muted">No more tags available.</p>
+          <mat-chip-listbox *ngIf="getAvailableTags().length > 0">
+            <mat-chip-option *ngFor="let tag of getAvailableTags()" (click)="addTag(tag)"
+                      [style.background-color]="tag.color || '#e0e0e0'" [disabled]="addingTag">
+              {{ tag.name }}
+            </mat-chip-option>
+          </mat-chip-listbox>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Violations Block -->
+    <mat-card class="info-block">
+      <mat-card-header>
+        <mat-card-title>Violation Flags</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="loading-container small" *ngIf="violationsLoading">
+          <mat-spinner diameter="24"></mat-spinner>
+        </div>
+        <div class="empty-state-small" *ngIf="!violationsLoading && violations.length === 0">
+          <mat-icon>verified</mat-icon>
+          <p>No violations found.</p>
+        </div>
+        <mat-list *ngIf="!violationsLoading && violations.length > 0">
+          <mat-list-item *ngFor="let v of violations">
+            <mat-icon matListItemIcon [color]="v.status === 'pending' ? 'warn' : 'primary'">
+              {{ getViolationSeverityIcon(v.status) }}
+            </mat-icon>
+            <span matListItemTitle>{{ v.status | titlecase }}</span>
+            <span matListItemLine>{{ v.created_at | date:'short' }}</span>
+          </mat-list-item>
+        </mat-list>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Context Menu -->
+  <div class="context-menu" *ngIf="showContextMenu"
+       [style.left.px]="contextMenuX" [style.top.px]="contextMenuY">
+    <button mat-menu-item (click)="loadCandidate(); closeContextMenu()">
+      <mat-icon>refresh</mat-icon> Refresh
+    </button>
+    <button mat-menu-item (click)="goBack(); closeContextMenu()">
+      <mat-icon>arrow_back</mat-icon> Back to List
+    </button>
+  </div>
+</div>

@@ -1,0 +1,125 @@
+.media-player-container { padding: 0; }
+
+.loading-container, .error-container, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 12px;
+  color: rgba(0, 0, 0, 0.54);
+  mat-icon { font-size: 48px; width: 48px; height: 48px; }
+}
+
+.player-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+
+  @media (max-width: 960px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.asset-sidebar {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+
+  h3 { margin-bottom: 12px; }
+}
+
+.asset-item {
+  cursor: pointer;
+  &.active { background: rgba(63, 81, 181, 0.08); }
+  &:hover { background: rgba(0, 0, 0, 0.04); }
+}
+
+.empty-state-small {
+  padding: 16px;
+  text-align: center;
+  color: rgba(0, 0, 0, 0.38);
+  mat-icon { font-size: 32px; width: 32px; height: 32px; display: block; margin: 0 auto 8px; }
+}
+
+.player-main { min-width: 0; }
+
+.player-wrapper {
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.player-wrapper h2 {
+  color: white;
+  padding: 12px 16px;
+  margin: 0;
+  font-size: 16px;
+}
+
+.player-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #fce4ec;
+  color: #c62828;
+  font-size: 13px;
+
+  mat-icon { flex-shrink: 0; }
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+}
+
+.video-element {
+  width: 100%;
+  max-height: 60vh;
+  display: block;
+  cursor: pointer;
+}
+
+.controls-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #1a1a1a;
+  color: white;
+
+  button {
+    color: white;
+  }
+}
+
+.time-display {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.8);
+  min-width: 40px;
+  text-align: center;
+}
+
+.seek-bar {
+  flex: 1;
+  height: 4px;
+  cursor: pointer;
+  accent-color: #3f51b5;
+}
+
+.active-speed, .active-quality {
+  font-weight: 700;
+  color: #3f51b5;
+}
+
+.speed-indicator {
+  padding: 4px 16px 8px;
+  background: #1a1a1a;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}

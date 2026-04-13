@@ -1,0 +1,13 @@
+node_modules
+dist
+.angular
+coverage
+.env
+.env.*
+*.log
+.git
+.gitignore
+README.md
+karma.conf.js
+**/*.spec.ts
+e2e/

@@ -1,0 +1,331 @@
+<div class="admin-container" *ngIf="isAdmin">
+  <div class="page-header">
+    <h1>{{ 'ADMIN.TITLE' | translate }}</h1>
+  </div>
+
+  <mat-tab-group (selectedIndexChange)="onTabChange($event)" [selectedIndex]="activeTab">
+    <!-- Users Tab -->
+    <mat-tab label="User Management">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h2>Users</h2>
+          <button mat-raised-button color="primary" (click)="openUserForm()">
+            <mat-icon>person_add</mat-icon> Add User
+          </button>
+        </div>
+
+        <!-- User Form -->
+        <mat-card *ngIf="showUserForm" class="form-card">
+          <mat-card-header>
+            <mat-card-title>{{ editingUser ? 'Edit User' : 'New User' }}</mat-card-title>
+            <button mat-icon-button (click)="showUserForm = false"><mat-icon>close</mat-icon></button>
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="userForm" (ngSubmit)="saveUser()" class="admin-form">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Username</mat-label>
+                <input matInput formControlName="username" [readonly]="!!editingUser">
+                <mat-error>Username is required</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline" class="full-width" *ngIf="!editingUser">
+                <mat-label>Password</mat-label>
+                <input matInput formControlName="password" type="password">
+                <mat-error>Password must be at least 6 characters</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Role</mat-label>
+                <mat-select formControlName="role">
+                  <mat-option *ngFor="let r of roleOptions" [value]="r">{{ r | titlecase }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Locale</mat-label>
+                <input matInput formControlName="locale">
+              </mat-form-field>
+
+              <div class="form-actions">
+                <button mat-button type="button" (click)="showUserForm = false">Cancel</button>
+                <button mat-raised-button color="primary" type="submit"
+                        [disabled]="userForm.invalid || isSavingUser">
+                  <mat-spinner *ngIf="isSavingUser" diameter="18"></mat-spinner>
+                  <span *ngIf="!isSavingUser">{{ editingUser ? 'Update' : 'Create' }}</span>
+                </button>
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+
+        <div class="loading-container" *ngIf="usersLoading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+        <div class="error-container" *ngIf="usersError">
+          <p>{{ usersError }}</p>
+          <button mat-raised-button (click)="loadUsers()">Retry</button>
+        </div>
+        <div class="empty-state" *ngIf="!usersLoading && !usersError && users.length === 0">
+          <mat-icon>people</mat-icon>
+          <p>No users found.</p>
+        </div>
+
+        <table mat-table [dataSource]="users" class="full-width"
+               *ngIf="!usersLoading && users.length > 0">
+          <ng-container matColumnDef="username">
+            <th mat-header-cell *matHeaderCellDef>Username</th>
+            <td mat-cell *matCellDef="let u">{{ u.username }}</td>
+          </ng-container>
+          <ng-container matColumnDef="role">
+            <th mat-header-cell *matHeaderCellDef>Role</th>
+            <td mat-cell *matCellDef="let u">
+              <span class="role-badge role-{{ u.role }}">{{ u.role | titlecase }}</span>
+            </td>
+          </ng-container>
+          <ng-container matColumnDef="locale">
+            <th mat-header-cell *matHeaderCellDef>Locale</th>
+            <td mat-cell *matCellDef="let u">{{ u.locale }}</td>
+          </ng-container>
+          <ng-container matColumnDef="created_at">
+            <th mat-header-cell *matHeaderCellDef>Created</th>
+            <td mat-cell *matCellDef="let u">{{ u.created_at | date:'short' }}</td>
+          </ng-container>
+          <ng-container matColumnDef="actions">
+            <th mat-header-cell *matHeaderCellDef>Actions</th>
+            <td mat-cell *matCellDef="let u">
+              <button mat-icon-button (click)="openUserForm(u)" matTooltip="Edit">
+                <mat-icon>edit</mat-icon>
+              </button>
+              <button mat-icon-button (click)="deleteUser(u)" matTooltip="Delete" color="warn">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </td>
+          </ng-container>
+          <tr mat-header-row *matHeaderRowDef="['username', 'role', 'locale', 'created_at', 'actions']"></tr>
+          <tr mat-row *matRowDef="let row; columns: ['username', 'role', 'locale', 'created_at', 'actions'];"></tr>
+        </table>
+      </div>
+    </mat-tab>
+
+    <!-- Violation Rules Tab -->
+    <mat-tab label="Violation Rules">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h2>Violation Rules</h2>
+          <button mat-raised-button color="primary" (click)="openRuleForm()">
+            <mat-icon>add</mat-icon> Add Rule
+          </button>
+        </div>
+
+        <mat-card *ngIf="showRuleForm" class="form-card">
+          <mat-card-header>
+            <mat-card-title>{{ editingRule ? 'Edit Rule' : 'New Rule' }}</mat-card-title>
+            <button mat-icon-button (click)="showRuleForm = false"><mat-icon>close</mat-icon></button>
+          </mat-card-header>
+          <mat-card-content>
+            <form [formGroup]="ruleForm" (ngSubmit)="saveRule()" class="admin-form">
+              <mat-form-field appearance="outline">
+                <mat-label>Rule Type</mat-label>
+                <mat-select formControlName="rule_type">
+                  <mat-option *ngFor="let t of ruleTypes" [value]="t">{{ t }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Severity</mat-label>
+                <mat-select formControlName="severity">
+                  <mat-option *ngFor="let s of severityOptions" [value]="s">{{ s | titlecase }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Rule Config (JSON)</mat-label>
+                <textarea matInput formControlName="rule_config" rows="3"></textarea>
+              </mat-form-field>
+              <mat-slide-toggle formControlName="is_active">Active</mat-slide-toggle>
+              <div class="form-actions">
+                <button mat-button type="button" (click)="showRuleForm = false">Cancel</button>
+                <button mat-raised-button color="primary" type="submit"
+                        [disabled]="ruleForm.invalid || isSavingRule">Save</button>
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+
+        <div class="loading-container" *ngIf="rulesLoading"><mat-spinner diameter="32"></mat-spinner></div>
+        <div class="empty-state" *ngIf="!rulesLoading && violationRules.length === 0">
+          <mat-icon>gavel</mat-icon><p>No violation rules configured.</p>
+        </div>
+        <mat-list *ngIf="!rulesLoading && violationRules.length > 0">
+          <mat-list-item *ngFor="let rule of violationRules">
+            <mat-icon matListItemIcon>{{ rule.is_active ? 'check_circle' : 'block' }}</mat-icon>
+            <span matListItemTitle>{{ rule.rule_type }} - {{ rule.severity | titlecase }}</span>
+            <span matListItemLine>{{ rule.is_active ? 'Active' : 'Inactive' }}</span>
+            <div matListItemMeta>
+              <button mat-icon-button (click)="openRuleForm(rule)"><mat-icon>edit</mat-icon></button>
+              <button mat-icon-button (click)="deleteRule(rule)" color="warn"><mat-icon>delete</mat-icon></button>
+            </div>
+          </mat-list-item>
+        </mat-list>
+      </div>
+    </mat-tab>
+
+    <!-- Approval Templates Tab -->
+    <mat-tab label="Approval Templates">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h2>Approval Templates</h2>
+          <button mat-raised-button color="primary" (click)="showTemplateForm = !showTemplateForm">
+            <mat-icon>add</mat-icon> Add Template
+          </button>
+        </div>
+
+        <mat-card *ngIf="showTemplateForm" class="form-card">
+          <mat-card-content>
+            <form [formGroup]="templateForm" (ngSubmit)="saveApprovalTemplate()" class="admin-form">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Name</mat-label>
+                <input matInput formControlName="name">
+                <mat-error>Name is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Description</mat-label>
+                <textarea matInput formControlName="description" rows="2"></textarea>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Approval Mode</mat-label>
+                <mat-select formControlName="approval_mode">
+                  <mat-option value="joint">Joint (all must approve)</mat-option>
+                  <mat-option value="any">Any (one is enough)</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <div class="form-actions">
+                <button mat-button type="button" (click)="showTemplateForm = false">Cancel</button>
+                <button mat-raised-button color="primary" type="submit"
+                        [disabled]="templateForm.invalid || isSavingTemplate">Create</button>
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+
+        <div class="loading-container" *ngIf="templatesLoading"><mat-spinner diameter="32"></mat-spinner></div>
+        <div class="empty-state" *ngIf="!templatesLoading && approvalTemplates.length === 0">
+          <mat-icon>assignment</mat-icon><p>No approval templates.</p>
+        </div>
+        <mat-list *ngIf="!templatesLoading && approvalTemplates.length > 0">
+          <mat-list-item *ngFor="let t of approvalTemplates">
+            <mat-icon matListItemIcon>assignment</mat-icon>
+            <span matListItemTitle>{{ t.name }}</span>
+            <span matListItemLine>{{ t.approval_mode | titlecase }} - {{ t.is_active ? 'Active' : 'Inactive' }}</span>
+            <button mat-icon-button matListItemMeta (click)="deleteApprovalTemplate(t)" color="warn">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-list-item>
+        </mat-list>
+      </div>
+    </mat-tab>
+
+    <!-- Notification Templates Tab -->
+    <mat-tab label="Notification Templates">
+      <div class="tab-content">
+        <div class="tab-header">
+          <h2>Notification Templates</h2>
+          <button mat-raised-button color="primary" (click)="showNotifForm = !showNotifForm">
+            <mat-icon>add</mat-icon> Add Template
+          </button>
+        </div>
+
+        <mat-card *ngIf="showNotifForm" class="form-card">
+          <mat-card-content>
+            <form [formGroup]="notifForm" (ngSubmit)="saveNotifTemplate()" class="admin-form">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Template Key</mat-label>
+                <input matInput formControlName="template_key">
+                <mat-error>Key is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Subject</mat-label>
+                <input matInput formControlName="subject">
+                <mat-error>Subject is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Body</mat-label>
+                <textarea matInput formControlName="body" rows="4"></textarea>
+                <mat-error>Body is required</mat-error>
+              </mat-form-field>
+              <mat-form-field appearance="outline">
+                <mat-label>Channel</mat-label>
+                <mat-select formControlName="channel">
+                  <mat-option *ngFor="let c of channelOptions" [value]="c">{{ c | titlecase }}</mat-option>
+                </mat-select>
+              </mat-form-field>
+              <mat-slide-toggle formControlName="is_active">Active</mat-slide-toggle>
+              <div class="form-actions">
+                <button mat-button type="button" (click)="showNotifForm = false">Cancel</button>
+                <button mat-raised-button color="primary" type="submit"
+                        [disabled]="notifForm.invalid || isSavingNotif">Create</button>
+              </div>
+            </form>
+          </mat-card-content>
+        </mat-card>
+
+        <div class="loading-container" *ngIf="notifLoading"><mat-spinner diameter="32"></mat-spinner></div>
+        <div class="empty-state" *ngIf="!notifLoading && notifTemplates.length === 0">
+          <mat-icon>notifications</mat-icon><p>No notification templates.</p>
+        </div>
+        <mat-list *ngIf="!notifLoading && notifTemplates.length > 0">
+          <mat-list-item *ngFor="let t of notifTemplates">
+            <mat-icon matListItemIcon>mail</mat-icon>
+            <span matListItemTitle>{{ t.template_key }}</span>
+            <span matListItemLine>{{ t.channel | titlecase }} - {{ t.subject }}</span>
+            <button mat-icon-button matListItemMeta (click)="deleteNotifTemplate(t)" color="warn">
+              <mat-icon>delete</mat-icon>
+            </button>
+          </mat-list-item>
+        </mat-list>
+      </div>
+    </mat-tab>
+
+    <!-- System Tab -->
+    <mat-tab label="System">
+      <div class="tab-content">
+        <h2>System Information</h2>
+        <mat-card class="system-card">
+          <mat-card-content>
+            <div class="system-info">
+              <div class="info-row">
+                <span class="info-label">Application</span>
+                <span>TalentOps Compliance & Service Desk</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Version</span>
+                <span>0.0.1</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Users</span>
+                <span>{{ users.length }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Violation Rules</span>
+                <span>{{ violationRules.length }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Approval Templates</span>
+                <span>{{ approvalTemplates.length }}</span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Notification Templates</span>
+                <span>{{ notifTemplates.length }}</span>
+              </div>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
+
+<!-- Access Denied -->
+<div class="access-denied" *ngIf="!isAdmin">
+  <mat-icon>lock</mat-icon>
+  <h2>Access Denied</h2>
+  <p>Admin privileges are required to access this page.</p>
+</div>

@@ -1,0 +1,121 @@
+<div class="dashboard-container">
+  <div class="page-header">
+    <h1>{{ 'DASHBOARD.TITLE' | translate }}</h1>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading dashboard...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error-container" *ngIf="errorMessage && !isLoading">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-raised-button color="primary" (click)="loadDashboard()">Retry</button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div *ngIf="!isLoading && !errorMessage">
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <mat-card class="stat-card" (click)="navigateTo('/approvals')">
+        <mat-card-content>
+          <div class="stat-icon-wrapper approvals-bg">
+            <mat-icon>thumb_up</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.pendingApprovals }}</span>
+            <span class="stat-label">{{ 'DASHBOARD.PENDING_APPROVALS' | translate }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card" (click)="navigateTo('/recruiting')">
+        <mat-card-content>
+          <div class="stat-icon-wrapper projects-bg">
+            <mat-icon>work</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.activeProjects }}</span>
+            <span class="stat-label">{{ 'DASHBOARD.ACTIVE_PROJECTS' | translate }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card" (click)="navigateTo('/violations')">
+        <mat-card-content>
+          <div class="stat-icon-wrapper violations-bg">
+            <mat-icon>gavel</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.violationsToReview }}</span>
+            <span class="stat-label">{{ 'DASHBOARD.VIOLATIONS_REVIEW' | translate }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <mat-card class="stat-card" (click)="navigateTo('/notifications')">
+        <mat-card-content>
+          <div class="stat-icon-wrapper notifications-bg">
+            <mat-icon>notifications</mat-icon>
+          </div>
+          <div class="stat-info">
+            <span class="stat-value">{{ stats.pendingNotifications }}</span>
+            <span class="stat-label">{{ 'DASHBOARD.PENDING_NOTIFICATIONS' | translate }}</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="section-row">
+      <mat-card class="quick-actions-card">
+        <mat-card-header>
+          <mat-card-title>{{ 'DASHBOARD.QUICK_ACTIONS' | translate }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="quick-actions-grid">
+            <button mat-stroked-button (click)="navigateTo('/recruiting')">
+              <mat-icon>add_circle</mat-icon>
+              New Project
+            </button>
+            <button mat-stroked-button (click)="navigateTo('/service-catalog')">
+              <mat-icon>category</mat-icon>
+              Service Catalog
+            </button>
+            <button mat-stroked-button (click)="navigateTo('/approvals')">
+              <mat-icon>check_circle</mat-icon>
+              Review Approvals
+            </button>
+            <button mat-stroked-button *ngIf="userRole === 'admin'" (click)="navigateTo('/admin')">
+              <mat-icon>admin_panel_settings</mat-icon>
+              Admin Panel
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Recent Activity -->
+      <mat-card class="activity-card">
+        <mat-card-header>
+          <mat-card-title>{{ 'DASHBOARD.RECENT_ACTIVITY' | translate }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="recentActivity.length === 0" class="empty-state">
+            <mat-icon>history</mat-icon>
+            <p>No recent activity</p>
+          </div>
+          <mat-list *ngIf="recentActivity.length > 0">
+            <mat-list-item *ngFor="let activity of recentActivity">
+              <mat-icon matListItemIcon>{{ getActivityIcon(activity.entity_type) }}</mat-icon>
+              <span matListItemTitle>{{ getActivityLabel(activity) }}</span>
+              <span matListItemLine class="text-muted">{{ activity.created_at | date:'short' }}</span>
+            </mat-list-item>
+          </mat-list>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div>

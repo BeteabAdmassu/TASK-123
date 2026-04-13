@@ -1,0 +1,138 @@
+<div class="posting-detail-container">
+  <button mat-button (click)="goBack()" class="back-button">
+    <mat-icon>arrow_back</mat-icon> Back
+  </button>
+
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading posting...</p>
+  </div>
+
+  <div class="error-container" *ngIf="errorMessage && !isLoading">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-raised-button color="primary" (click)="loadPosting()">Retry</button>
+  </div>
+
+  <div *ngIf="posting && !isLoading && !errorMessage">
+    <mat-card class="posting-card">
+      <mat-card-header>
+        <mat-card-title *ngIf="!isEditing">
+          {{ posting.title }}
+          <span class="status-badge status-{{ posting.status }}">{{ posting.status }}</span>
+        </mat-card-title>
+        <div class="header-actions">
+          <button mat-icon-button (click)="toggleEdit()">
+            <mat-icon>{{ isEditing ? 'close' : 'edit' }}</mat-icon>
+          </button>
+        </div>
+      </mat-card-header>
+      <mat-card-content>
+        <div *ngIf="!isEditing">
+          <p>{{ posting.description || 'No description provided.' }}</p>
+          <div class="meta-info">
+            <span><strong>Created:</strong> {{ posting.created_at | date:'mediumDate' }}</span>
+            <span><strong>Updated:</strong> {{ posting.updated_at | date:'mediumDate' }}</span>
+          </div>
+        </div>
+
+        <form *ngIf="isEditing" [formGroup]="editForm" (ngSubmit)="savePosting()" class="edit-form">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Title</mat-label>
+            <input matInput formControlName="title">
+            <mat-error *ngIf="editForm.get('title')?.hasError('required')">Title is required</mat-error>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Description</mat-label>
+            <textarea matInput formControlName="description" rows="4"></textarea>
+          </mat-form-field>
+
+          <mat-form-field appearance="outline">
+            <mat-label>Status</mat-label>
+            <mat-select formControlName="status">
+              <mat-option *ngFor="let s of statusOptions" [value]="s">{{ s | titlecase }}</mat-option>
+            </mat-select>
+          </mat-form-field>
+
+          <div class="form-actions">
+            <button mat-button type="button" (click)="toggleEdit()">Cancel</button>
+            <button mat-raised-button color="primary" type="submit" [disabled]="editForm.invalid || isSaving">
+              <mat-spinner *ngIf="isSaving" diameter="18"></mat-spinner>
+              <span *ngIf="!isSaving">Save</span>
+            </button>
+          </div>
+        </form>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Candidates Section -->
+    <div class="candidates-section">
+      <div class="section-header">
+        <h2>Candidates</h2>
+        <button mat-raised-button color="primary" (click)="showCandidateForm = !showCandidateForm">
+          <mat-icon>{{ showCandidateForm ? 'close' : 'person_add' }}</mat-icon>
+          {{ showCandidateForm ? 'Cancel' : 'Add Candidate' }}
+        </button>
+      </div>
+
+      <!-- Add Candidate Form -->
+      <mat-card *ngIf="showCandidateForm" class="add-candidate-card">
+        <mat-card-content>
+          <form [formGroup]="candidateForm" (ngSubmit)="addCandidate()" class="candidate-form">
+            <mat-form-field appearance="outline">
+              <mat-label>First Name</mat-label>
+              <input matInput formControlName="first_name">
+              <mat-error *ngIf="candidateForm.get('first_name')?.hasError('required')">Required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Last Name</mat-label>
+              <input matInput formControlName="last_name">
+              <mat-error *ngIf="candidateForm.get('last_name')?.hasError('required')">Required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Email</mat-label>
+              <input matInput formControlName="email" type="email">
+              <mat-error *ngIf="candidateForm.get('email')?.hasError('email')">Invalid email</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Phone</mat-label>
+              <input matInput formControlName="phone">
+            </mat-form-field>
+
+            <div class="form-actions">
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="candidateForm.invalid || isAddingCandidate">
+                <mat-spinner *ngIf="isAddingCandidate" diameter="18"></mat-spinner>
+                <span *ngIf="!isAddingCandidate">Add Candidate</span>
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <div class="loading-container small" *ngIf="candidatesLoading">
+        <mat-spinner diameter="32"></mat-spinner>
+      </div>
+
+      <div class="empty-state" *ngIf="!candidatesLoading && candidates.length === 0">
+        <mat-icon>person_off</mat-icon>
+        <p>No candidates for this posting yet.</p>
+      </div>
+
+      <mat-list *ngIf="!candidatesLoading && candidates.length > 0">
+        <mat-list-item *ngFor="let c of candidates" (click)="openCandidate(c)" class="candidate-item">
+          <mat-icon matListItemIcon>person</mat-icon>
+          <span matListItemTitle>{{ c.first_name }} {{ c.last_name }}</span>
+          <span matListItemLine>
+            <span class="status-badge status-{{ c.status }}">{{ c.status }}</span>
+            <span class="text-muted" *ngIf="c.email"> - {{ c.email }}</span>
+          </span>
+        </mat-list-item>
+      </mat-list>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,95 @@
+<div class="notifications-container">
+  <div class="page-header">
+    <h1>{{ 'NOTIFICATIONS.TITLE' | translate }}</h1>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading notifications...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="error-container" *ngIf="errorMessage && !isLoading">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-raised-button color="primary" (click)="loadNotifications()">Retry</button>
+  </div>
+
+  <!-- Empty -->
+  <div class="empty-state" *ngIf="!isLoading && !errorMessage && notifications.length === 0">
+    <mat-icon>notifications_none</mat-icon>
+    <h3>No notifications</h3>
+    <p>You have no notifications at this time.</p>
+  </div>
+
+  <!-- Notifications Table -->
+  <div class="table-wrapper" *ngIf="!isLoading && !errorMessage && notifications.length > 0">
+    <table mat-table [dataSource]="notifications" class="full-width">
+      <ng-container matColumnDef="type">
+        <th mat-header-cell *matHeaderCellDef>Type</th>
+        <td mat-cell *matCellDef="let n">
+          <div class="type-cell">
+            <mat-icon>{{ getTypeIcon(n.type) }}</mat-icon>
+            <span>{{ n.type | titlecase }}</span>
+          </div>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="template_key">
+        <th mat-header-cell *matHeaderCellDef>Template</th>
+        <td mat-cell *matCellDef="let n">{{ n.template_key }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="status">
+        <th mat-header-cell *matHeaderCellDef>Status</th>
+        <td mat-cell *matCellDef="let n">
+          <span class="status-badge status-{{ n.status }}">
+            <mat-icon class="badge-icon">{{ getStatusIcon(n.status) }}</mat-icon>
+            {{ n.status | titlecase }}
+          </span>
+        </td>
+      </ng-container>
+
+      <ng-container matColumnDef="created_at">
+        <th mat-header-cell *matHeaderCellDef>Created</th>
+        <td mat-cell *matCellDef="let n">{{ n.created_at | date:'short' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="actions">
+        <th mat-header-cell *matHeaderCellDef>Actions</th>
+        <td mat-cell *matCellDef="let n">
+          <button mat-icon-button [matMenuTriggerFor]="actionMenu" aria-label="Actions">
+            <mat-icon>more_vert</mat-icon>
+          </button>
+          <mat-menu #actionMenu="matMenu">
+            <button mat-menu-item (click)="markAsRead(n)"
+                    *ngIf="n.status === 'pending' || n.status === 'generated'">
+              <mat-icon>mark_email_read</mat-icon> Mark as Read
+            </button>
+            <button mat-menu-item (click)="markAsAcknowledged(n)"
+                    *ngIf="n.status === 'opened'">
+              <mat-icon>done_all</mat-icon> Acknowledge
+            </button>
+            <button mat-menu-item (click)="exportNotification(n)"
+                    *ngIf="canExport(n)" [disabled]="isExporting">
+              <mat-icon>file_download</mat-icon> Export
+            </button>
+          </mat-menu>
+        </td>
+      </ng-container>
+
+      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumns;"
+          [class.unread]="row.status === 'pending' || row.status === 'generated'"></tr>
+    </table>
+
+    <mat-paginator
+      [length]="totalItems"
+      [pageSize]="pageSize"
+      [pageSizeOptions]="[10, 25, 50]"
+      (page)="onPageChange($event)"
+      showFirstLastButtons>
+    </mat-paginator>
+  </div>
+</div>

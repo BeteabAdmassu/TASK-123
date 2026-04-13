@@ -1,0 +1,174 @@
+<div class="geospatial-container">
+  <div class="page-header">
+    <h1>{{ 'GEOSPATIAL.TITLE' | translate }}</h1>
+    <div class="header-actions">
+      <button mat-raised-button (click)="showImportForm = !showImportForm">
+        <mat-icon>cloud_upload</mat-icon> Import Dataset
+      </button>
+      <button mat-raised-button color="accent" (click)="showAnalysis = !showAnalysis">
+        <mat-icon>analytics</mat-icon> Analysis
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading geospatial data...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="error-container" *ngIf="errorMessage && !isLoading">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-raised-button color="primary" (click)="loadDatasets()">Retry</button>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="geo-layout" *ngIf="!isLoading && !errorMessage">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <!-- Import Form -->
+      <mat-card *ngIf="showImportForm" class="import-card">
+        <mat-card-header>
+          <mat-card-title>Import Dataset</mat-card-title>
+          <button mat-icon-button (click)="showImportForm = false"><mat-icon>close</mat-icon></button>
+        </mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="importForm" (ngSubmit)="importDataset()" class="import-form">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Dataset Name</mat-label>
+              <input matInput formControlName="name" placeholder="My Dataset">
+              <mat-error>Name is required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Source Type</mat-label>
+              <mat-select formControlName="source_type">
+                <mat-option value="csv">CSV</mat-option>
+                <mat-option value="geojson">GeoJSON</mat-option>
+                <mat-option value="gps">GPS</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <div class="file-picker">
+              <input type="file" accept=".csv,.geojson,.json"
+                     (change)="onFileSelected($event)" #fileInput>
+              <button mat-stroked-button type="button" (click)="fileInput.click()">
+                <mat-icon>attach_file</mat-icon>
+                {{ selectedFile ? selectedFile.name : 'Choose File' }}
+              </button>
+            </div>
+
+            <div class="form-actions">
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="importForm.invalid || !selectedFile || isImporting">
+                <mat-spinner *ngIf="isImporting" diameter="18"></mat-spinner>
+                <span *ngIf="!isImporting">Import</span>
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Layer Controls -->
+      <mat-card class="layers-card">
+        <mat-card-header>
+          <mat-card-title>Layers</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="datasets.length === 0" class="empty-state-small">
+            <mat-icon>layers_clear</mat-icon>
+            <p>No datasets available. Import one to get started.</p>
+          </div>
+          <mat-list *ngIf="datasets.length > 0">
+            <mat-list-item *ngFor="let ds of datasets" class="layer-item">
+              <mat-checkbox [checked]="isLayerVisible(ds.id)"
+                            (change)="toggleLayer(ds)"
+                            matListItemMeta>
+              </mat-checkbox>
+              <mat-icon matListItemIcon>{{ getImportStatusIcon(ds.import_status) }}</mat-icon>
+              <span matListItemTitle>{{ ds.name }}</span>
+              <span matListItemLine>
+                {{ ds.source_type | uppercase }} -
+                {{ ds.feature_count || 0 }} features
+              </span>
+            </mat-list-item>
+          </mat-list>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Analysis Panel -->
+      <mat-card *ngIf="showAnalysis" class="analysis-card">
+        <mat-card-header>
+          <mat-card-title>Analysis</mat-card-title>
+          <button mat-icon-button (click)="showAnalysis = false"><mat-icon>close</mat-icon></button>
+        </mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="analysisForm" (ngSubmit)="runAnalysis()" class="analysis-form">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Dataset</mat-label>
+              <mat-select formControlName="dataset_id">
+                <mat-option *ngFor="let ds of datasets" [value]="ds.id">{{ ds.name }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Analysis Type</mat-label>
+              <mat-select formControlName="analysis_type">
+                <mat-option *ngFor="let t of analysisTypes" [value]="t">{{ t | titlecase }}</mat-option>
+              </mat-select>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width"
+                            *ngIf="analysisForm.get('analysis_type')?.value === 'aggregation'">
+              <mat-label>Property</mat-label>
+              <input matInput formControlName="property" placeholder="e.g., population">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width"
+                            *ngIf="analysisForm.get('analysis_type')?.value === 'density'">
+              <mat-label>Grid Size</mat-label>
+              <input matInput type="number" formControlName="gridSize">
+            </mat-form-field>
+
+            <div *ngIf="analysisForm.get('analysis_type')?.value === 'buffer'">
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Buffer Distance</mat-label>
+                <input matInput type="number" formControlName="distance">
+              </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Unit</mat-label>
+                <mat-select formControlName="unit">
+                  <mat-option value="meters">Meters</mat-option>
+                  <mat-option value="kilometers">Kilometers</mat-option>
+                  <mat-option value="miles">Miles</mat-option>
+                </mat-select>
+              </mat-form-field>
+            </div>
+
+            <div class="form-actions">
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="analysisForm.invalid || isAnalyzing">
+                <mat-spinner *ngIf="isAnalyzing" diameter="18"></mat-spinner>
+                <span *ngIf="!isAnalyzing">Run Analysis</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Analysis Results -->
+          <div *ngIf="analysisResult" class="analysis-results">
+            <mat-divider></mat-divider>
+            <h4>Results ({{ analysisResult.type | titlecase }})</h4>
+            <pre class="result-json">{{ analysisResult.data | json }}</pre>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
+
+    <!-- Map -->
+    <div class="map-wrapper">
+      <div #mapContainer class="map-element"></div>
+    </div>
+  </div>
+</div>

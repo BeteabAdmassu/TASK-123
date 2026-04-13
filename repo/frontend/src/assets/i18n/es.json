@@ -1,0 +1,48 @@
+{
+  "NAV": {
+    "DASHBOARD": "Tablero",
+    "RECRUITING": "Reclutamiento",
+    "SERVICE_CATALOG": "Catalogo de Servicios",
+    "APPROVALS": "Aprobaciones",
+    "VIOLATIONS": "Violaciones",
+    "NOTIFICATIONS": "Notificaciones",
+    "ADMIN": "Administracion"
+  },
+  "MENU": {
+    "SETTINGS": "Configuracion",
+    "LOGOUT": "Cerrar Sesion"
+  },
+  "DASHBOARD": {
+    "TITLE": "Tablero",
+    "PENDING_APPROVALS": "Aprobaciones Pendientes",
+    "ACTIVE_PROJECTS": "Proyectos Activos",
+    "VIOLATIONS_REVIEW": "Violaciones para Revisar",
+    "PENDING_NOTIFICATIONS": "Notificaciones Pendientes",
+    "QUICK_ACTIONS": "Acciones Rapidas",
+    "RECENT_ACTIVITY": "Actividad Reciente"
+  },
+  "RECRUITING": {
+    "TITLE": "Proyectos de Reclutamiento"
+  },
+  "VIOLATIONS": {
+    "TITLE": "Cola de Revision de Violaciones"
+  },
+  "SERVICE_CATALOG": {
+    "TITLE": "Catalogo de Servicios"
+  },
+  "APPROVALS": {
+    "TITLE": "Bandeja de Aprobaciones"
+  },
+  "NOTIFICATIONS": {
+    "TITLE": "Notificaciones"
+  },
+  "GEOSPATIAL": {
+    "TITLE": "Visor Geoespacial"
+  },
+  "MEDIA": {
+    "TITLE": "Reproductor de Medios"
+  },
+  "ADMIN": {
+    "TITLE": "Administracion"
+  }
+}

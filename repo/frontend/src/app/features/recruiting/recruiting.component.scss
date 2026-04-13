@@ -1,0 +1,68 @@
+.recruiting-container {
+  padding: 0;
+}
+
+.search-field {
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 16px;
+}
+
+.loading-container, .error-container, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 12px;
+  color: rgba(0, 0, 0, 0.54);
+
+  mat-icon {
+    font-size: 48px;
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.table-wrapper {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.full-width {
+  width: 100%;
+}
+
+.project-link {
+  color: #3f51b5;
+  cursor: pointer;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.clickable-row {
+  cursor: pointer;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.status-draft { background-color: #e0e0e0; color: #616161; }
+.status-active { background-color: #e8f5e9; color: #2e7d32; }
+.status-completed { background-color: #e3f2fd; color: #1565c0; }
+.status-archived { background-color: #fff3e0; color: #ef6c00; }

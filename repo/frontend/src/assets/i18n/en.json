@@ -1,0 +1,48 @@
+{
+  "NAV": {
+    "DASHBOARD": "Dashboard",
+    "RECRUITING": "Recruiting",
+    "SERVICE_CATALOG": "Service Catalog",
+    "APPROVALS": "Approvals",
+    "VIOLATIONS": "Violations",
+    "NOTIFICATIONS": "Notifications",
+    "ADMIN": "Admin"
+  },
+  "MENU": {
+    "SETTINGS": "Settings",
+    "LOGOUT": "Logout"
+  },
+  "DASHBOARD": {
+    "TITLE": "Dashboard",
+    "PENDING_APPROVALS": "Pending Approvals",
+    "ACTIVE_PROJECTS": "Active Projects",
+    "VIOLATIONS_REVIEW": "Violations to Review",
+    "PENDING_NOTIFICATIONS": "Pending Notifications",
+    "QUICK_ACTIONS": "Quick Actions",
+    "RECENT_ACTIVITY": "Recent Activity"
+  },
+  "RECRUITING": {
+    "TITLE": "Recruiting Projects"
+  },
+  "VIOLATIONS": {
+    "TITLE": "Violation Review Queue"
+  },
+  "SERVICE_CATALOG": {
+    "TITLE": "Service Catalog"
+  },
+  "APPROVALS": {
+    "TITLE": "Approval Inbox"
+  },
+  "NOTIFICATIONS": {
+    "TITLE": "Notifications"
+  },
+  "GEOSPATIAL": {
+    "TITLE": "Geospatial Viewer"
+  },
+  "MEDIA": {
+    "TITLE": "Media Player"
+  },
+  "ADMIN": {
+    "TITLE": "Administration"
+  }
+}

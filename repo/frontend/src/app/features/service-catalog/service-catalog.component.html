@@ -1,0 +1,307 @@
+<div class="service-catalog-container">
+  <div class="page-header">
+    <h1>{{ 'SERVICE_CATALOG.TITLE' | translate }}</h1>
+    <div class="header-actions">
+      <button mat-raised-button (click)="showCategoryForm = !showCategoryForm">
+        <mat-icon>create_new_folder</mat-icon> New Category
+      </button>
+      <button mat-raised-button color="primary" (click)="openSpecForm()"
+              [disabled]="!selectedCategoryId">
+        <mat-icon>add</mat-icon> New Specification
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading service catalog...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="error-container" *ngIf="errorMessage && !isLoading">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-raised-button color="primary" (click)="loadCategories()">Retry</button>
+  </div>
+
+  <!-- Main Content -->
+  <div class="catalog-layout" *ngIf="!isLoading && !errorMessage">
+    <!-- Category Tree -->
+    <div class="tree-panel">
+      <h3>Categories</h3>
+
+      <!-- New Category Form -->
+      <mat-card *ngIf="showCategoryForm" class="inline-form-card">
+        <form [formGroup]="categoryForm" (ngSubmit)="createCategory()">
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Category Name</mat-label>
+            <input matInput formControlName="name">
+            <mat-error>Name is required</mat-error>
+          </mat-form-field>
+          <mat-form-field appearance="outline" class="full-width">
+            <mat-label>Description</mat-label>
+            <input matInput formControlName="description">
+          </mat-form-field>
+          <div class="form-actions">
+            <button mat-button type="button" (click)="showCategoryForm = false">Cancel</button>
+            <button mat-raised-button color="primary" type="submit"
+                    [disabled]="categoryForm.invalid || isSaving">
+              Create
+            </button>
+          </div>
+        </form>
+      </mat-card>
+
+      <div *ngIf="categories.length === 0" class="empty-state-small">
+        <mat-icon>folder_off</mat-icon>
+        <p>No categories yet. Create one to get started.</p>
+      </div>
+
+      <mat-tree [dataSource]="dataSource" [treeControl]="treeControl" *ngIf="categories.length > 0">
+        <mat-tree-node *matTreeNodeDef="let node" matTreeNodePadding
+                       (click)="selectCategory(node)"
+                       [class.selected]="selectedCategoryId === node.id"
+                       class="tree-node">
+          <button mat-icon-button disabled></button>
+          <mat-icon>folder</mat-icon>
+          <span>{{ node.name }}</span>
+        </mat-tree-node>
+
+        <mat-tree-node *matTreeNodeDef="let node; when: hasChild" matTreeNodePadding
+                       (click)="selectCategory(node)"
+                       [class.selected]="selectedCategoryId === node.id"
+                       class="tree-node">
+          <button mat-icon-button matTreeNodeToggle>
+            <mat-icon>{{ treeControl.isExpanded(node) ? 'expand_more' : 'chevron_right' }}</mat-icon>
+          </button>
+          <mat-icon>folder</mat-icon>
+          <span>{{ node.name }}</span>
+        </mat-tree-node>
+      </mat-tree>
+    </div>
+
+    <!-- Specifications Panel -->
+    <div class="specs-panel">
+      <div *ngIf="!selectedCategoryId" class="empty-state">
+        <mat-icon>category</mat-icon>
+        <p>Select a category to view specifications.</p>
+      </div>
+
+      <!-- Spec Form -->
+      <mat-card *ngIf="showSpecForm" class="spec-form-card">
+        <mat-card-header>
+          <mat-card-title>{{ editingSpec ? 'Edit' : 'New' }} Specification</mat-card-title>
+          <button mat-icon-button (click)="cancelSpecForm()"><mat-icon>close</mat-icon></button>
+        </mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="specForm" (ngSubmit)="saveSpec()" class="spec-form">
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Name</mat-label>
+              <input matInput formControlName="name">
+              <mat-error>Name is required</mat-error>
+            </mat-form-field>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Description</mat-label>
+              <textarea matInput formControlName="description" rows="2"></textarea>
+            </mat-form-field>
+
+            <div class="form-row">
+              <mat-form-field appearance="outline">
+                <mat-label>Duration (minutes, 15-min increments)</mat-label>
+                <input matInput type="number" formControlName="duration_minutes" step="15" min="15" max="480">
+                <mat-error>Must be 15-480 minutes</mat-error>
+              </mat-form-field>
+
+              <mat-form-field appearance="outline">
+                <mat-label>Headcount (1-20)</mat-label>
+                <input matInput type="number" formControlName="headcount" min="1" max="20">
+                <mat-error>Must be 1-20</mat-error>
+              </mat-form-field>
+            </div>
+
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Tools/Addons (comma-separated, max 30)</mat-label>
+              <input matInput formControlName="tools_addons" placeholder="Tool1, Tool2, ...">
+            </mat-form-field>
+
+            <mat-form-field appearance="outline">
+              <mat-label>Daily Capacity</mat-label>
+              <input matInput type="number" formControlName="daily_capacity" min="1">
+            </mat-form-field>
+
+            <div class="form-actions">
+              <button mat-button type="button" (click)="cancelSpecForm()">Cancel</button>
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="specForm.invalid || isSaving">
+                <mat-spinner *ngIf="isSaving" diameter="18"></mat-spinner>
+                <span *ngIf="!isSaving">{{ editingSpec ? 'Update' : 'Create' }}</span>
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Specs Table -->
+      <div *ngIf="selectedCategoryId && !showSpecForm">
+        <div class="loading-container small" *ngIf="specsLoading">
+          <mat-spinner diameter="32"></mat-spinner>
+        </div>
+
+        <div class="empty-state" *ngIf="!specsLoading && specifications.length === 0">
+          <mat-icon>inventory_2</mat-icon>
+          <p>No specifications in this category.</p>
+        </div>
+
+        <div class="table-wrapper" *ngIf="!specsLoading && specifications.length > 0">
+          <table mat-table [dataSource]="specifications" class="full-width">
+            <ng-container matColumnDef="name">
+              <th mat-header-cell *matHeaderCellDef>Name</th>
+              <td mat-cell *matCellDef="let spec">{{ spec.name }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="duration_minutes">
+              <th mat-header-cell *matHeaderCellDef>Duration</th>
+              <td mat-cell *matCellDef="let spec">{{ spec.duration_minutes }} min</td>
+            </ng-container>
+
+            <ng-container matColumnDef="headcount">
+              <th mat-header-cell *matHeaderCellDef>Headcount</th>
+              <td mat-cell *matCellDef="let spec">{{ spec.headcount }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="status">
+              <th mat-header-cell *matHeaderCellDef>Status</th>
+              <td mat-cell *matCellDef="let spec">
+                <span class="status-badge" [ngClass]="getStatusBadgeClass(spec.status)">
+                  {{ spec.status | titlecase }}
+                </span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="actions">
+              <th mat-header-cell *matHeaderCellDef>Actions</th>
+              <td mat-cell *matCellDef="let spec">
+                <button mat-icon-button [matMenuTriggerFor]="specMenu">
+                  <mat-icon>more_vert</mat-icon>
+                </button>
+                <mat-menu #specMenu="matMenu">
+                  <button mat-menu-item (click)="openSpecForm(spec)">
+                    <mat-icon>edit</mat-icon> Edit
+                  </button>
+                  <button mat-menu-item (click)="openPricing(spec)">
+                    <mat-icon>attach_money</mat-icon> Pricing
+                  </button>
+                  <button mat-menu-item (click)="openCapacity(spec)">
+                    <mat-icon>tune</mat-icon> Capacity
+                  </button>
+                  <mat-divider></mat-divider>
+                  <button mat-menu-item (click)="updateSpecStatus(spec, 'active')" *ngIf="spec.status !== 'active'">
+                    <mat-icon>play_arrow</mat-icon> Activate
+                  </button>
+                  <button mat-menu-item (click)="updateSpecStatus(spec, 'paused')" *ngIf="spec.status === 'active'">
+                    <mat-icon>pause</mat-icon> Pause
+                  </button>
+                  <button mat-menu-item (click)="updateSpecStatus(spec, 'retired')" *ngIf="spec.status !== 'retired'">
+                    <mat-icon>archive</mat-icon> Retire
+                  </button>
+                </mat-menu>
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;"></tr>
+          </table>
+
+          <mat-paginator
+            [length]="totalSpecs"
+            [pageSize]="specPageSize"
+            [pageSizeOptions]="[10, 25, 50]"
+            (page)="onSpecPageChange($event)"
+            showFirstLastButtons>
+          </mat-paginator>
+        </div>
+      </div>
+
+      <!-- Pricing Panel -->
+      <mat-card *ngIf="showPricingForm && selectedSpec" class="pricing-card">
+        <mat-card-header>
+          <mat-card-title>Pricing Rules - {{ selectedSpec.name }}</mat-card-title>
+          <button mat-icon-button (click)="showPricingForm = false"><mat-icon>close</mat-icon></button>
+        </mat-card-header>
+        <mat-card-content>
+          <div class="loading-container small" *ngIf="pricingLoading">
+            <mat-spinner diameter="24"></mat-spinner>
+          </div>
+
+          <mat-list *ngIf="!pricingLoading && pricingRules.length > 0">
+            <mat-list-item *ngFor="let rule of pricingRules">
+              <span matListItemTitle>{{ rule.rule_type | titlecase }} - ${{ rule.base_price || rule.surcharge_amount || 0 }}</span>
+              <span matListItemLine *ngIf="rule.surcharge_label">{{ rule.surcharge_label }}</span>
+              <button mat-icon-button matListItemMeta (click)="deletePricingRule(rule)">
+                <mat-icon>delete</mat-icon>
+              </button>
+            </mat-list-item>
+          </mat-list>
+
+          <p *ngIf="!pricingLoading && pricingRules.length === 0" class="text-muted">No pricing rules yet.</p>
+
+          <mat-divider></mat-divider>
+          <h4>Add Pricing Rule</h4>
+          <form [formGroup]="pricingForm" (ngSubmit)="savePricingRule()" class="pricing-form">
+            <mat-form-field appearance="outline">
+              <mat-label>Type</mat-label>
+              <mat-select formControlName="rule_type">
+                <mat-option value="base">Base</mat-option>
+                <mat-option value="tiered">Tiered</mat-option>
+                <mat-option value="surcharge">Surcharge</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Base Price</mat-label>
+              <input matInput type="number" formControlName="base_price" min="0">
+            </mat-form-field>
+            <mat-form-field appearance="outline" *ngIf="pricingForm.get('rule_type')?.value === 'surcharge'">
+              <mat-label>Surcharge Label</mat-label>
+              <input matInput formControlName="surcharge_label">
+            </mat-form-field>
+            <div class="form-actions">
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="pricingForm.invalid || isSaving">Add Rule</button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Capacity Panel -->
+      <mat-card *ngIf="showCapacityForm && selectedSpec" class="capacity-card">
+        <mat-card-header>
+          <mat-card-title>Capacity Settings - {{ selectedSpec.name }}</mat-card-title>
+          <button mat-icon-button (click)="showCapacityForm = false"><mat-icon>close</mat-icon></button>
+        </mat-card-header>
+        <mat-card-content>
+          <form [formGroup]="capacityForm" (ngSubmit)="saveCapacity()" class="capacity-form">
+            <mat-form-field appearance="outline">
+              <mat-label>Date</mat-label>
+              <input matInput formControlName="date" type="date">
+              <mat-error>Date is required</mat-error>
+            </mat-form-field>
+            <mat-form-field appearance="outline">
+              <mat-label>Max Volume</mat-label>
+              <input matInput type="number" formControlName="max_volume" min="1">
+            </mat-form-field>
+            <mat-slide-toggle formControlName="is_stopped">Stop Intake</mat-slide-toggle>
+            <div class="form-actions">
+              <button mat-button type="button" (click)="showCapacityForm = false">Cancel</button>
+              <button mat-raised-button color="primary" type="submit"
+                      [disabled]="capacityForm.invalid || isSaving">
+                Save Capacity
+              </button>
+            </div>
+          </form>
+        </mat-card-content>
+      </mat-card>
+    </div>
+  </div>
+</div>

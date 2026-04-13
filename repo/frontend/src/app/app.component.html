@@ -1,0 +1,66 @@
+<div class="app-container" *ngIf="isLoggedIn(); else loginBlock">
+  <mat-toolbar color="primary" class="app-toolbar">
+    <button mat-icon-button (click)="toggleSidenav()" aria-label="Toggle navigation">
+      <mat-icon>menu</mat-icon>
+    </button>
+    <span class="app-title">{{ title }}</span>
+
+    <span class="toolbar-spacer"></span>
+
+    <button mat-icon-button (click)="onSearchOpen()" matTooltip="Search (Ctrl+K)" aria-label="Search">
+      <mat-icon>search</mat-icon>
+    </button>
+
+    <button mat-icon-button [routerLink]="['/notifications']" aria-label="Notifications"
+            [matBadge]="pendingCount > 0 ? pendingCount : null"
+            matBadgeColor="warn"
+            [matBadgeHidden]="pendingCount === 0">
+      <mat-icon>notifications</mat-icon>
+    </button>
+
+    <button mat-button (click)="toggleLanguage()" class="lang-toggle" aria-label="Toggle language">
+      {{ currentLang === 'en' ? 'ES' : 'EN' }}
+    </button>
+
+    <button mat-button [matMenuTriggerFor]="userMenu" class="user-menu-btn">
+      <mat-icon>account_circle</mat-icon>
+      <span class="user-name">{{ userName }}</span>
+    </button>
+    <mat-menu #userMenu="matMenu">
+      <button mat-menu-item [routerLink]="['/admin']">
+        <mat-icon>settings</mat-icon>
+        <span>{{ 'MENU.SETTINGS' | translate }}</span>
+      </button>
+      <button mat-menu-item (click)="logout()">
+        <mat-icon>exit_to_app</mat-icon>
+        <span>{{ 'MENU.LOGOUT' | translate }}</span>
+      </button>
+    </mat-menu>
+  </mat-toolbar>
+
+  <mat-sidenav-container class="app-sidenav-container">
+    <mat-sidenav [opened]="isSidenavOpen" mode="side" class="app-sidenav">
+      <nav class="sidenav-nav">
+        <a *ngFor="let item of navItems"
+           mat-button
+           class="nav-item"
+           [routerLink]="item.route"
+           routerLinkActive="active">
+          <mat-icon class="nav-icon">{{ item.icon }}</mat-icon>
+          <span class="nav-label">{{ item.label | translate }}</span>
+          <span *ngIf="item.route === '/notifications' && pendingCount > 0" class="nav-badge">
+            {{ pendingCount }}
+          </span>
+        </a>
+      </nav>
+    </mat-sidenav>
+
+    <mat-sidenav-content class="app-content">
+      <router-outlet></router-outlet>
+    </mat-sidenav-content>
+  </mat-sidenav-container>
+</div>
+
+<ng-template #loginBlock>
+  <router-outlet></router-outlet>
+</ng-template>

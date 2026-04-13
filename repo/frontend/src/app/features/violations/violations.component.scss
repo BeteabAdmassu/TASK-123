@@ -1,0 +1,103 @@
+.violations-container { padding: 0; }
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-field { width: 200px; }
+
+.loading-container, .error-container, .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 12px;
+  color: rgba(0, 0, 0, 0.54);
+  mat-icon { font-size: 48px; width: 48px; height: 48px; }
+  &.small { min-height: 60px; }
+}
+
+.content-layout {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 16px;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.table-section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+}
+
+.full-width { width: 100%; }
+
+.severity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge-icon { font-size: 16px; width: 16px; height: 16px; }
+
+.severity-pending { background: #fff8e1; color: #f57f17; }
+.severity-reviewed { background: #e8f5e9; color: #2e7d32; }
+.severity-dismissed { background: #e0e0e0; color: #616161; }
+.severity-escalated { background: #fce4ec; color: #c62828; }
+
+tr.selected { background: rgba(63, 81, 181, 0.08); }
+tr { cursor: pointer; &:hover { background: rgba(0, 0, 0, 0.04); } }
+
+.review-panel {
+  mat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+
+.violation-details {
+  margin-bottom: 16px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  padding: 6px 0;
+  gap: 12px;
+}
+
+.detail-label {
+  width: 100px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
+}
+
+.review-form {
+  margin-top: 16px;
+  h3 { margin: 16px 0 12px; }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+h3 { margin: 16px 0 8px; }

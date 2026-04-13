@@ -1,0 +1,165 @@
+@use '@angular/material' as mat;
+
+// ── Custom Theme ──────────────────────────────────────────────────────
+$talentops-primary: mat.define-palette(mat.$indigo-palette, 600);
+$talentops-accent: mat.define-palette(mat.$pink-palette, A200, A100, A400);
+$talentops-warn: mat.define-palette(mat.$red-palette);
+
+$talentops-theme: mat.define-light-theme((
+  color: (
+    primary: $talentops-primary,
+    accent: $talentops-accent,
+    warn: $talentops-warn,
+  ),
+  typography: mat.define-typography-config(
+    $font-family: 'Roboto, "Helvetica Neue", sans-serif',
+  ),
+  density: 0,
+));
+
+@include mat.all-component-themes($talentops-theme);
+
+// ── Global Reset & Base ───────────────────────────────────────────────
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  font-family: Roboto, 'Helvetica Neue', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: rgba(0, 0, 0, 0.87);
+  background-color: #fafafa;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// ── Typography helpers ────────────────────────────────────────────────
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+a {
+  color: mat.get-theme-color($talentops-theme, primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// ── Layout Utilities ──────────────────────────────────────────────────
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  padding: 24px;
+  max-width: 1440px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+// ── Flex Utilities ────────────────────────────────────────────────────
+.flex-row {
+  display: flex;
+  flex-direction: row;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flex-1 {
+  flex: 1;
+}
+
+.gap-8 {
+  gap: 8px;
+}
+
+.gap-16 {
+  gap: 16px;
+}
+
+.gap-24 {
+  gap: 24px;
+}
+
+// ── Spacing Utilities ─────────────────────────────────────────────────
+.m-0 { margin: 0; }
+.p-0 { padding: 0; }
+.mt-8 { margin-top: 8px; }
+.mt-16 { margin-top: 16px; }
+.mt-24 { margin-top: 24px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-16 { margin-bottom: 16px; }
+.mb-24 { margin-bottom: 24px; }
+.p-8 { padding: 8px; }
+.p-16 { padding: 16px; }
+.p-24 { padding: 24px; }
+
+// ── Card & Surface ────────────────────────────────────────────────────
+.surface-card {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+}
+
+// ── Text Utilities ────────────────────────────────────────────────────
+.text-center { text-align: center; }
+.text-right { text-align: right; }
+.text-muted { color: rgba(0, 0, 0, 0.54); }
+.text-small { font-size: 12px; }
+.text-bold { font-weight: 500; }
+
+// ── Responsive breakpoints ────────────────────────────────────────────
+$breakpoint-sm: 600px;
+$breakpoint-md: 960px;
+$breakpoint-lg: 1280px;
+$breakpoint-xl: 1920px;
+
+// ── Scrollbar styling ─────────────────────────────────────────────────
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.35);
+  }
+}

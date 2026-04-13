@@ -1,0 +1,252 @@
+<div class="resume-editor-container">
+  <button mat-button (click)="goBack()" class="back-button">
+    <mat-icon>arrow_back</mat-icon> Back to Candidate
+  </button>
+
+  <!-- Loading -->
+  <div class="loading-container" *ngIf="isLoading">
+    <mat-spinner diameter="48"></mat-spinner>
+    <p>Loading resume...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="error-container" *ngIf="errorMessage && !isLoading">
+    <mat-icon color="warn">error_outline</mat-icon>
+    <p>{{ errorMessage }}</p>
+    <button mat-raised-button color="primary" (click)="loadVersions()">Retry</button>
+  </div>
+
+  <!-- Editor Content -->
+  <div class="editor-layout" *ngIf="!isLoading && !errorMessage">
+    <!-- Version History Sidebar -->
+    <div class="version-sidebar">
+      <h3>Version History</h3>
+      <div class="empty-state-small" *ngIf="versions.length === 0">
+        <p>No versions yet. Start editing to create the first version.</p>
+      </div>
+      <mat-list *ngIf="versions.length > 0">
+        <mat-list-item *ngFor="let v of versions"
+                       (click)="selectVersion(v)"
+                       [class.active]="selectedVersion?.id === v.id"
+                       class="version-item">
+          <mat-icon matListItemIcon>history</mat-icon>
+          <span matListItemTitle>Version {{ v.version_number }}</span>
+          <span matListItemLine>{{ v.created_at | date:'short' }}</span>
+          <button mat-icon-button matListItemMeta
+                  (click)="$event.stopPropagation(); toggleDiff(v)"
+                  *ngIf="selectedVersion && selectedVersion.id !== v.id"
+                  [matTooltip]="'Compare with current'">
+            <mat-icon>compare_arrows</mat-icon>
+          </button>
+        </mat-list-item>
+      </mat-list>
+    </div>
+
+    <!-- Main Editor -->
+    <div class="editor-main">
+      <div class="editor-header">
+        <h2>Resume Editor</h2>
+        <div class="editor-actions">
+          <span class="save-hint">Ctrl+Enter to save</span>
+          <button mat-raised-button color="primary" (click)="saveResume()" [disabled]="isSaving">
+            <mat-spinner *ngIf="isSaving" diameter="18"></mat-spinner>
+            <span *ngIf="!isSaving">
+              <mat-icon>save</mat-icon> Save New Version
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Diff View -->
+      <mat-card *ngIf="showDiff && comparisonVersion" class="diff-card">
+        <mat-card-header>
+          <mat-card-title>Changes between Version {{ comparisonVersion.version_number }} and Version {{ selectedVersion?.version_number }}</mat-card-title>
+          <button mat-icon-button (click)="showDiff = false">
+            <mat-icon>close</mat-icon>
+          </button>
+        </mat-card-header>
+        <mat-card-content>
+          <div *ngIf="getDiffFields().length === 0" class="no-diff">
+            <p>No differences found.</p>
+          </div>
+          <div *ngFor="let field of getDiffFields()" class="diff-field">
+            <span class="diff-label">{{ field | titlecase }}</span>
+            <span class="diff-indicator">Modified</span>
+          </div>
+        </mat-card-content>
+      </mat-card>
+
+      <!-- Resume Form -->
+      <form [formGroup]="resumeForm" class="resume-form">
+        <!-- Summary -->
+        <mat-card class="section-card">
+          <mat-card-header>
+            <mat-card-title>Summary</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Professional Summary</mat-label>
+              <textarea matInput formControlName="summary" rows="4"
+                        placeholder="Brief professional summary..."></textarea>
+            </mat-form-field>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Experience -->
+        <mat-card class="section-card">
+          <mat-card-header>
+            <mat-card-title>Experience</mat-card-title>
+            <button mat-icon-button (click)="addExperience()" matTooltip="Add experience">
+              <mat-icon>add</mat-icon>
+            </button>
+          </mat-card-header>
+          <mat-card-content>
+            <div *ngIf="experienceArray.length === 0" class="empty-section">
+              <p>No experience entries. Click + to add one.</p>
+            </div>
+            <div formArrayName="experience">
+              <mat-expansion-panel *ngFor="let exp of experienceArray.controls; let i = index" [formGroupName]="i">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>{{ exp.get('title')?.value || 'New Experience' }}</mat-panel-title>
+                  <mat-panel-description>{{ exp.get('organization')?.value }}</mat-panel-description>
+                </mat-expansion-panel-header>
+                <div class="section-fields">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Title</mat-label>
+                    <input matInput formControlName="title">
+                    <mat-error>Title is required</mat-error>
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Organization</mat-label>
+                    <input matInput formControlName="organization">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Start Date</mat-label>
+                    <input matInput formControlName="startDate" placeholder="YYYY-MM">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>End Date</mat-label>
+                    <input matInput formControlName="endDate" placeholder="YYYY-MM or Present">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Description</mat-label>
+                    <textarea matInput formControlName="description" rows="3"></textarea>
+                  </mat-form-field>
+                </div>
+                <div class="section-actions">
+                  <button mat-button color="warn" (click)="removeExperience(i)">
+                    <mat-icon>delete</mat-icon> Remove
+                  </button>
+                </div>
+              </mat-expansion-panel>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Education -->
+        <mat-card class="section-card">
+          <mat-card-header>
+            <mat-card-title>Education</mat-card-title>
+            <button mat-icon-button (click)="addEducation()" matTooltip="Add education">
+              <mat-icon>add</mat-icon>
+            </button>
+          </mat-card-header>
+          <mat-card-content>
+            <div *ngIf="educationArray.length === 0" class="empty-section">
+              <p>No education entries. Click + to add one.</p>
+            </div>
+            <div formArrayName="education">
+              <mat-expansion-panel *ngFor="let edu of educationArray.controls; let i = index" [formGroupName]="i">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>{{ edu.get('title')?.value || 'New Education' }}</mat-panel-title>
+                  <mat-panel-description>{{ edu.get('organization')?.value }}</mat-panel-description>
+                </mat-expansion-panel-header>
+                <div class="section-fields">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Degree/Title</mat-label>
+                    <input matInput formControlName="title">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Institution</mat-label>
+                    <input matInput formControlName="organization">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Start Date</mat-label>
+                    <input matInput formControlName="startDate">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>End Date</mat-label>
+                    <input matInput formControlName="endDate">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="full-width">
+                    <mat-label>Description</mat-label>
+                    <textarea matInput formControlName="description" rows="2"></textarea>
+                  </mat-form-field>
+                </div>
+                <div class="section-actions">
+                  <button mat-button color="warn" (click)="removeEducation(i)">
+                    <mat-icon>delete</mat-icon> Remove
+                  </button>
+                </div>
+              </mat-expansion-panel>
+            </div>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Skills -->
+        <mat-card class="section-card">
+          <mat-card-header>
+            <mat-card-title>Skills</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <mat-form-field appearance="outline" class="full-width">
+              <mat-label>Skills (comma-separated)</mat-label>
+              <input matInput formControlName="skills" placeholder="JavaScript, Python, Angular, ...">
+            </mat-form-field>
+          </mat-card-content>
+        </mat-card>
+
+        <!-- Certifications -->
+        <mat-card class="section-card">
+          <mat-card-header>
+            <mat-card-title>Certifications</mat-card-title>
+            <button mat-icon-button (click)="addCertification()" matTooltip="Add certification">
+              <mat-icon>add</mat-icon>
+            </button>
+          </mat-card-header>
+          <mat-card-content>
+            <div *ngIf="certificationsArray.length === 0" class="empty-section">
+              <p>No certifications. Click + to add one.</p>
+            </div>
+            <div formArrayName="certifications">
+              <mat-expansion-panel *ngFor="let cert of certificationsArray.controls; let i = index" [formGroupName]="i">
+                <mat-expansion-panel-header>
+                  <mat-panel-title>{{ cert.get('title')?.value || 'New Certification' }}</mat-panel-title>
+                </mat-expansion-panel-header>
+                <div class="section-fields">
+                  <mat-form-field appearance="outline">
+                    <mat-label>Certification Name</mat-label>
+                    <input matInput formControlName="title">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Issuing Organization</mat-label>
+                    <input matInput formControlName="organization">
+                  </mat-form-field>
+                  <mat-form-field appearance="outline">
+                    <mat-label>Date</mat-label>
+                    <input matInput formControlName="startDate">
+                  </mat-form-field>
+                </div>
+                <div class="section-actions">
+                  <button mat-button color="warn" (click)="removeCertification(i)">
+                    <mat-icon>delete</mat-icon> Remove
+                  </button>
+                </div>
+              </mat-expansion-panel>
+            </div>
+          </mat-card-content>
+        </mat-card>
+      </form>
+    </div>
+  </div>
+</div>
