@@ -1,199 +1,207 @@
-/**
- * AdminComponent – Updater Behavior Tests
- *
- * Tests the update/rollback UI logic without a full Angular TestBed,
- * by exercising the same patterns used in AdminComponent methods
- * against mock Electron APIs.
- */
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { RouterTestingModule } from '@angular/router/testing';
+import { ReactiveFormsModule } from '@angular/forms';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { of } from 'rxjs';
 
-/** Mirror of the helper from admin.component.ts */
-interface ElectronUpdaterApi {
-  check(): Promise<{ available: boolean; currentVersion?: string; availableVersion?: string }>;
-  apply(): Promise<{ success: boolean }>;
-  rollback(): Promise<{ success: boolean; error?: string }>;
-  hasRollback(): Promise<{ available: boolean }>;
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { SharedModule } from '../../shared/shared.module';
+import { ApiService } from '../../core/services/api.service';
+import { AuthService } from '../../core/auth/auth.service';
+import { AdminComponent } from './admin.component';
+
+// ---------------------------------------------------------------------------
+// Mock helpers
+// ---------------------------------------------------------------------------
+
+function mockApiService(): Partial<ApiService> {
+  const empty = { data: [], total: 0, page: 1, pageSize: 25 };
+  return {
+    get: jasmine.createSpy('get').and.returnValue(of(empty)),
+    post: jasmine.createSpy('post').and.returnValue(of({})),
+    put: jasmine.createSpy('put').and.returnValue(of({})),
+    delete: jasmine.createSpy('delete').and.returnValue(of({})),
+  };
 }
 
-function getElectronUpdater(win: Record<string, unknown>): ElectronUpdaterApi | null {
-  try {
-    const api = win['electronAPI'] as { updater?: ElectronUpdaterApi } | undefined;
-    return api?.updater ?? null;
-  } catch {
-    return null;
+function mockAuthService(): Partial<AuthService> {
+  return {
+    getUser: jasmine.createSpy('getUser').and.returnValue(
+      of({ id: 'u1', username: 'admin', role: 'admin', name: '', email: '' })
+    ),
+    getCurrentUserValue: jasmine.createSpy('getCurrentUserValue').and.returnValue(
+      { id: 'u1', username: 'admin', role: 'admin', name: '', email: '' }
+    ),
+  };
+}
+
+function buildMockUpdater() {
+  return {
+    check: jasmine.createSpy('check'),
+    apply: jasmine.createSpy('apply'),
+    rollback: jasmine.createSpy('rollback'),
+    hasRollback: jasmine.createSpy('hasRollback').and.resolveTo({ available: false }),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('AdminComponent (TestBed)', () => {
+  let fixture: ComponentFixture<AdminComponent>;
+  let component: AdminComponent;
+  let savedElectronAPI: unknown;
+
+  beforeEach(async () => {
+    // Preserve any real electronAPI so we can restore it
+    savedElectronAPI = (window as Record<string, unknown>)['electronAPI'];
+
+    await TestBed.configureTestingModule({
+      imports: [
+        SharedModule,
+        ReactiveFormsModule,
+        RouterTestingModule,
+        NoopAnimationsModule,
+        TranslateModule.forRoot(),
+      ],
+      declarations: [AdminComponent],
+      providers: [
+        { provide: ApiService, useFactory: mockApiService },
+        { provide: AuthService, useFactory: mockAuthService },
+        { provide: MatSnackBar, useValue: { open: jasmine.createSpy('open') } },
+      ],
+    }).compileComponents();
+  });
+
+  afterEach(() => {
+    // Restore window state
+    if (savedElectronAPI !== undefined) {
+      (window as Record<string, unknown>)['electronAPI'] = savedElectronAPI;
+    } else {
+      delete (window as Record<string, unknown>)['electronAPI'];
+    }
+  });
+
+  function createComponent(): void {
+    fixture = TestBed.createComponent(AdminComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges(); // triggers ngOnInit
   }
-}
 
-describe('AdminComponent updater behavior', () => {
+  // ----- Suite 1: Uses Electron updater bridge when present -----
+
   describe('Uses Electron updater bridge when present', () => {
-    let mockUpdater: {
-      check: jest.Mock;
-      apply: jest.Mock;
-      rollback: jest.Mock;
-      hasRollback: jest.Mock;
-    };
+    let mockUpdater: ReturnType<typeof buildMockUpdater>;
 
     beforeEach(() => {
-      mockUpdater = {
-        check: jest.fn(),
-        apply: jest.fn(),
-        rollback: jest.fn(),
-        hasRollback: jest.fn(),
-      };
+      mockUpdater = buildMockUpdater();
+      (window as Record<string, unknown>)['electronAPI'] = { updater: mockUpdater };
+      createComponent();
     });
 
-    it('checkForUpdate sets updateAvailable, currentVersion, availableVersion from bridge', async () => {
-      mockUpdater.check.mockResolvedValue({
+    it('should detect Electron environment on init', () => {
+      expect(component.isElectron).toBeTrue();
+    });
+
+    it('checkForUpdate should set updateAvailable, currentVersion, availableVersion', async () => {
+      mockUpdater.check.and.resolveTo({
         available: true,
         currentVersion: '1.0.0',
         availableVersion: '1.2.0',
       });
 
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } });
-      expect(updater).not.toBeNull();
+      await component.checkForUpdate();
 
-      // Simulate what checkForUpdate() does
-      let updateAvailable = false;
-      let currentVersion = '';
-      let availableVersion = '';
-      let updaterError = '';
-
-      try {
-        const result = await updater!.check();
-        updateAvailable = result.available;
-        currentVersion = result.currentVersion || '';
-        availableVersion = result.availableVersion || '';
-      } catch {
-        updaterError = 'Failed to check for updates.';
-      }
-
-      expect(updateAvailable).toBe(true);
-      expect(currentVersion).toBe('1.0.0');
-      expect(availableVersion).toBe('1.2.0');
-      expect(updaterError).toBe('');
+      expect(component.updateAvailable).toBeTrue();
+      expect(component.currentVersion).toBe('1.0.0');
+      expect(component.availableVersion).toBe('1.2.0');
+      expect(component.updaterError).toBe('');
       expect(mockUpdater.check).toHaveBeenCalledTimes(1);
     });
 
-    it('checkForUpdate sets no error when application is up to date', async () => {
-      mockUpdater.check.mockResolvedValue({ available: false });
+    it('checkForUpdate should set success message when up to date', async () => {
+      mockUpdater.check.and.resolveTo({ available: false });
 
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } })!;
-      const result = await updater.check();
+      await component.checkForUpdate();
 
-      expect(result.available).toBe(false);
+      expect(component.updateAvailable).toBeFalse();
+      expect(component.updaterSuccess).toBeTruthy(); // translated key resolved
     });
 
-    it('applyUpdate calls updater.apply', async () => {
-      mockUpdater.apply.mockResolvedValue({ success: true });
+    it('checkForUpdate should set updaterError on rejection', async () => {
+      mockUpdater.check.and.rejectWith(new Error('IPC fail'));
 
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } })!;
-      const result = await updater.apply();
+      await component.checkForUpdate();
 
-      expect(result.success).toBe(true);
-      expect(mockUpdater.apply).toHaveBeenCalledTimes(1);
-    });
-
-    it('rollbackUpdate calls updater.rollback and returns result', async () => {
-      mockUpdater.rollback.mockResolvedValue({ success: true });
-
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } })!;
-      const result = await updater.rollback();
-
-      expect(result.success).toBe(true);
-      expect(mockUpdater.rollback).toHaveBeenCalledTimes(1);
-    });
-
-    it('rollbackUpdate surfaces error string on failure', async () => {
-      mockUpdater.rollback.mockResolvedValue({
-        success: false,
-        error: 'No previous version available for rollback',
-      });
-
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } })!;
-      const result = await updater.rollback();
-
-      expect(result.success).toBe(false);
-      expect(result.error).toBe('No previous version available for rollback');
+      expect(component.updaterError).toBeTruthy();
+      expect(component.updaterChecking).toBeFalse();
     });
   });
 
-  describe('Handles missing Electron API gracefully', () => {
-    it('returns null when window has no electronAPI', () => {
-      expect(getElectronUpdater({})).toBeNull();
+  // ----- Suite 2: Graceful fallback when Electron API missing -----
+
+  describe('Graceful fallback when Electron API missing', () => {
+    beforeEach(() => {
+      delete (window as Record<string, unknown>)['electronAPI'];
+      createComponent();
     });
 
-    it('returns null when electronAPI exists but updater is undefined', () => {
-      expect(getElectronUpdater({ electronAPI: {} })).toBeNull();
+    it('should set isElectron to false', () => {
+      expect(component.isElectron).toBeFalse();
     });
 
-    it('returns null when electronAPI is a non-object primitive', () => {
-      expect(getElectronUpdater({ electronAPI: 42 })).toBeNull();
+    it('checkForUpdate should be a no-op without throwing', async () => {
+      await expectAsync(component.checkForUpdate()).toBeResolved();
+      expect(component.updaterChecking).toBeFalse();
     });
 
-    it('component-level isElectron would be false, preventing button rendering', () => {
-      // Mirrors: this.isElectron = !!getElectronUpdater(window);
-      const isElectron = !!getElectronUpdater({});
-      expect(isElectron).toBe(false);
+    it('applyUpdate should be a no-op without throwing', async () => {
+      await expectAsync(component.applyUpdate()).toBeResolved();
+      expect(component.updaterApplying).toBeFalse();
     });
 
-    it('checkForUpdate is a no-op when updater is null', async () => {
-      const updater = getElectronUpdater({});
-      // Mirrors: if (!updater) return;
-      let called = false;
-      if (updater) {
-        await updater.check();
-        called = true;
-      }
-      expect(called).toBe(false);
+    it('rollbackUpdate should be a no-op without throwing', async () => {
+      await expectAsync(component.rollbackUpdate()).toBeResolved();
+      expect(component.updaterRollingBack).toBeFalse();
     });
   });
 
-  describe('Rollback state follows hasRollback result', () => {
-    it('rollbackAvailable = true when hasRollback returns available', async () => {
-      const mockUpdater = {
-        check: jest.fn(),
-        apply: jest.fn(),
-        rollback: jest.fn(),
-        hasRollback: jest.fn().mockResolvedValue({ available: true }),
-      };
+  // ----- Suite 3: Rollback availability state -----
 
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } })!;
-      const result = await updater.hasRollback();
+  describe('Rollback availability state', () => {
+    let mockUpdater: ReturnType<typeof buildMockUpdater>;
 
-      // Mirrors: this.rollbackAvailable = result.available;
-      const rollbackAvailable = result.available;
-      expect(rollbackAvailable).toBe(true);
+    beforeEach(() => {
+      mockUpdater = buildMockUpdater();
+      (window as Record<string, unknown>)['electronAPI'] = { updater: mockUpdater };
     });
 
-    it('rollbackAvailable = false when hasRollback returns unavailable', async () => {
-      const mockUpdater = {
-        check: jest.fn(),
-        apply: jest.fn(),
-        rollback: jest.fn(),
-        hasRollback: jest.fn().mockResolvedValue({ available: false }),
-      };
+    it('should set rollbackAvailable=true when hasRollback returns available', async () => {
+      mockUpdater.hasRollback.and.resolveTo({ available: true });
+      createComponent(); // ngOnInit calls initUpdater -> checkRollbackAvailability
 
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } })!;
-      const result = await updater.hasRollback();
-      expect(result.available).toBe(false);
+      // Wait for the async hasRollback call to settle
+      await fixture.whenStable();
+
+      expect(component.rollbackAvailable).toBeTrue();
     });
 
-    it('rollbackAvailable = false when hasRollback throws', async () => {
-      const mockUpdater = {
-        check: jest.fn(),
-        apply: jest.fn(),
-        rollback: jest.fn(),
-        hasRollback: jest.fn().mockRejectedValue(new Error('IPC dead')),
-      };
+    it('should set rollbackAvailable=false when hasRollback returns unavailable', async () => {
+      mockUpdater.hasRollback.and.resolveTo({ available: false });
+      createComponent();
+      await fixture.whenStable();
 
-      const updater = getElectronUpdater({ electronAPI: { updater: mockUpdater } })!;
-      let rollbackAvailable = false;
-      try {
-        const result = await updater.hasRollback();
-        rollbackAvailable = result.available;
-      } catch {
-        rollbackAvailable = false;
-      }
-      expect(rollbackAvailable).toBe(false);
+      expect(component.rollbackAvailable).toBeFalse();
+    });
+
+    it('should set rollbackAvailable=false when hasRollback throws', async () => {
+      mockUpdater.hasRollback.and.rejectWith(new Error('IPC dead'));
+      createComponent();
+      await fixture.whenStable();
+
+      expect(component.rollbackAvailable).toBeFalse();
     });
   });
 });

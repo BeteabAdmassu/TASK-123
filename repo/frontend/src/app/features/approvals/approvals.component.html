@@ -2,12 +2,12 @@
   <div class="page-header">
     <h1>{{ 'APPROVALS.TITLE' | translate }}</h1>
     <mat-form-field appearance="outline" class="filter-field">
-      <mat-label>Filter by Status</mat-label>
+      <mat-label>{{ 'APPROVALS.FILTER_STATUS' | translate }}</mat-label>
       <mat-select [(value)]="statusFilter" (selectionChange)="onStatusFilterChange()">
-        <mat-option value="">All</mat-option>
-        <mat-option value="pending">Pending</mat-option>
-        <mat-option value="approved">Approved</mat-option>
-        <mat-option value="rejected">Rejected</mat-option>
+        <mat-option value="">{{ 'APPROVALS.ALL' | translate }}</mat-option>
+        <mat-option value="pending">{{ 'APPROVALS.PENDING' | translate }}</mat-option>
+        <mat-option value="approved">{{ 'APPROVALS.APPROVED' | translate }}</mat-option>
+        <mat-option value="rejected">{{ 'APPROVALS.REJECTED' | translate }}</mat-option>
       </mat-select>
     </mat-form-field>
   </div>
@@ -15,21 +15,21 @@
   <!-- Loading -->
   <div class="loading-container" *ngIf="isLoading">
     <mat-spinner diameter="48"></mat-spinner>
-    <p>Loading approvals...</p>
+    <p>{{ 'APPROVALS.LOADING' | translate }}</p>
   </div>
 
   <!-- Error -->
   <div class="error-container" *ngIf="errorMessage && !isLoading">
     <mat-icon color="warn">error_outline</mat-icon>
     <p>{{ errorMessage }}</p>
-    <button mat-raised-button color="primary" (click)="loadApprovals()">Retry</button>
+    <button mat-raised-button color="primary" (click)="loadApprovals()">{{ 'COMMON.RETRY' | translate }}</button>
   </div>
 
   <!-- Empty -->
   <div class="empty-state" *ngIf="!isLoading && !errorMessage && approvals.length === 0">
     <mat-icon>inbox</mat-icon>
-    <h3>No approval requests</h3>
-    <p>There are no approval requests matching the current filter.</p>
+    <h3>{{ 'APPROVALS.NO_APPROVALS' | translate }}</h3>
+    <p>{{ 'APPROVALS.NO_APPROVALS_HINT' | translate }}</p>
   </div>
 
   <!-- Main Content -->
@@ -38,31 +38,31 @@
     <div class="table-section">
       <table mat-table [dataSource]="approvals" class="full-width">
         <ng-container matColumnDef="entity_type">
-          <th mat-header-cell *matHeaderCellDef>Type</th>
+          <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.TYPE' | translate }}</th>
           <td mat-cell *matCellDef="let a">{{ a.entity_type | titlecase }}</td>
         </ng-container>
 
         <ng-container matColumnDef="status">
-          <th mat-header-cell *matHeaderCellDef>Status</th>
+          <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.STATUS' | translate }}</th>
           <td mat-cell *matCellDef="let a">
             <span class="status-badge status-{{ a.status }}">{{ a.status | titlecase }}</span>
           </td>
         </ng-container>
 
         <ng-container matColumnDef="approval_mode">
-          <th mat-header-cell *matHeaderCellDef>Mode</th>
+          <th mat-header-cell *matHeaderCellDef>{{ 'APPROVALS.MODE' | translate }}</th>
           <td mat-cell *matCellDef="let a">{{ a.approval_mode | titlecase }}</td>
         </ng-container>
 
         <ng-container matColumnDef="created_at">
-          <th mat-header-cell *matHeaderCellDef>Created</th>
+          <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.CREATED' | translate }}</th>
           <td mat-cell *matCellDef="let a">{{ a.created_at | localDate }}</td>
         </ng-container>
 
         <ng-container matColumnDef="actions">
-          <th mat-header-cell *matHeaderCellDef>Actions</th>
+          <th mat-header-cell *matHeaderCellDef>{{ 'COMMON.ACTIONS' | translate }}</th>
           <td mat-cell *matCellDef="let a">
-            <button mat-icon-button (click)="selectApproval(a)" matTooltip="View Details">
+            <button mat-icon-button (click)="selectApproval(a)" [matTooltip]="'COMMON.VIEW_DETAILS' | translate">
               <mat-icon>{{ a.status === 'pending' ? 'rate_review' : 'visibility' }}</mat-icon>
             </button>
           </td>
@@ -87,27 +87,27 @@
     <div class="detail-panel" *ngIf="selectedApproval">
       <mat-card>
         <mat-card-header>
-          <mat-card-title>Approval Request</mat-card-title>
+          <mat-card-title>{{ 'APPROVALS.APPROVAL_REQUEST' | translate }}</mat-card-title>
           <button mat-icon-button (click)="closeDetail()"><mat-icon>close</mat-icon></button>
         </mat-card-header>
         <mat-card-content>
           <div class="approval-info">
             <div class="info-row">
-              <span class="info-label">Entity</span>
+              <span class="info-label">{{ 'APPROVALS.ENTITY' | translate }}</span>
               <span>{{ selectedApproval.entity_type }} ({{ selectedApproval.entity_id | slice:0:8 }}...)</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Mode</span>
+              <span class="info-label">{{ 'APPROVALS.MODE' | translate }}</span>
               <span>{{ selectedApproval.approval_mode | titlecase }}</span>
             </div>
             <div class="info-row">
-              <span class="info-label">Status</span>
+              <span class="info-label">{{ 'COMMON.STATUS' | translate }}</span>
               <span class="status-badge status-{{ selectedApproval.status }}">
                 {{ selectedApproval.status | titlecase }}
               </span>
             </div>
             <div class="info-row">
-              <span class="info-label">Progress</span>
+              <span class="info-label">{{ 'APPROVALS.PROGRESS' | translate }}</span>
               <mat-progress-bar mode="determinate"
                                [value]="getProgressPercentage(selectedApproval)">
               </mat-progress-bar>
@@ -116,12 +116,12 @@
           </div>
 
           <!-- Approval Chain -->
-          <h3>Approval Chain</h3>
+          <h3>{{ 'APPROVALS.APPROVAL_CHAIN' | translate }}</h3>
           <div class="loading-container small" *ngIf="stepsLoading">
             <mat-spinner diameter="24"></mat-spinner>
           </div>
           <div *ngIf="!stepsLoading && (!selectedApproval.steps || selectedApproval.steps.length === 0)"
-               class="text-muted">No steps found.</div>
+               class="text-muted">{{ 'APPROVALS.NO_STEPS' | translate }}</div>
           <mat-list *ngIf="!stepsLoading && selectedApproval.steps && selectedApproval.steps.length > 0">
             <mat-list-item *ngFor="let step of selectedApproval.steps"
                            (click)="selectStep(step)"
@@ -130,7 +130,7 @@
               <mat-icon matListItemIcon [class]="'step-icon-' + step.status">
                 {{ getStepStatusIcon(step.status) }}
               </mat-icon>
-              <span matListItemTitle>Step {{ step.step_order }} - Approver {{ step.approver_id | slice:0:8 }}</span>
+              <span matListItemTitle>{{ 'APPROVALS.STEP_LABEL' | translate:{ step: step.step_order, approver: (step.approver_id | slice:0:8) } }}</span>
               <span matListItemLine>
                 <span class="status-badge status-{{ step.status }}">{{ step.status | titlecase }}</span>
                 <span *ngIf="step.decided_at"> - {{ step.decided_at | localDate }}</span>
@@ -142,19 +142,19 @@
           <!-- Decision Form -->
           <div *ngIf="selectedApproval.status === 'pending' && selectedStep && selectedStep.status === 'pending'">
             <mat-divider></mat-divider>
-            <h3>Submit Decision for Step {{ selectedStep.step_order }}</h3>
+            <h3>{{ 'APPROVALS.SUBMIT_DECISION_STEP' | translate:{ step: selectedStep.step_order } }}</h3>
             <form [formGroup]="decisionForm" (ngSubmit)="submitDecision()" class="decision-form">
               <mat-radio-group formControlName="decision" class="decision-radio-group">
-                <mat-radio-button value="approved" color="primary">Approve</mat-radio-button>
-                <mat-radio-button value="rejected" color="warn">Reject</mat-radio-button>
+                <mat-radio-button value="approved" color="primary">{{ 'APPROVALS.APPROVE' | translate }}</mat-radio-button>
+                <mat-radio-button value="rejected" color="warn">{{ 'APPROVALS.REJECT' | translate }}</mat-radio-button>
               </mat-radio-group>
 
               <mat-form-field appearance="outline" class="full-width">
-                <mat-label>Comment {{ decisionForm.get('decision')?.value === 'rejected' ? '(required)' : '(optional)' }}</mat-label>
+                <mat-label>{{ (decisionForm.get('decision')?.value === 'rejected' ? 'APPROVALS.COMMENT_REQUIRED_LABEL' : 'APPROVALS.COMMENT_OPTIONAL_LABEL') | translate }}</mat-label>
                 <textarea matInput formControlName="comment" rows="3"
-                          placeholder="Provide a comment..."></textarea>
+                          [placeholder]="'APPROVALS.COMMENT_PLACEHOLDER' | translate"></textarea>
                 <mat-error *ngIf="decisionForm.get('comment')?.hasError('required')">
-                  Comment is required when rejecting
+                  {{ 'APPROVALS.COMMENT_REQUIRED' | translate }}
                 </mat-error>
               </mat-form-field>
 
@@ -162,7 +162,7 @@
                 <button mat-raised-button color="primary" type="submit"
                         [disabled]="decisionForm.invalid || isDeciding">
                   <mat-spinner *ngIf="isDeciding" diameter="18"></mat-spinner>
-                  <span *ngIf="!isDeciding">Submit Decision</span>
+                  <span *ngIf="!isDeciding">{{ 'APPROVALS.SUBMIT_DECISION' | translate }}</span>
                 </button>
               </div>
             </form>
@@ -170,12 +170,12 @@
 
           <!-- Audit Trail -->
           <mat-divider></mat-divider>
-          <h3>Audit Trail</h3>
+          <h3>{{ 'APPROVALS.AUDIT_TRAIL' | translate }}</h3>
           <div class="loading-container small" *ngIf="auditLoading">
             <mat-spinner diameter="24"></mat-spinner>
           </div>
           <div *ngIf="!auditLoading && auditTrail.length === 0" class="text-muted">
-            No audit entries found.
+            {{ 'APPROVALS.NO_AUDIT' | translate }}
           </div>
           <mat-list *ngIf="!auditLoading && auditTrail.length > 0" dense>
             <mat-list-item *ngFor="let entry of auditTrail">

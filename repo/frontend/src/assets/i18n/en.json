@@ -242,7 +242,11 @@
     "COMMENT_PLACEHOLDER": "Provide a comment...",
     "COMMENT_LABEL": "Comment",
     "AUDIT_TRAIL": "Audit Trail",
-    "NO_AUDIT": "No audit entries found."
+    "NO_AUDIT": "No audit entries found.",
+    "STEP_LABEL": "Step {{step}} - Approver {{approver}}",
+    "SUBMIT_DECISION_STEP": "Submit Decision for Step {{step}}",
+    "COMMENT_REQUIRED_LABEL": "Comment (required)",
+    "COMMENT_OPTIONAL_LABEL": "Comment (optional)"
   },
   "NOTIFICATIONS": {
     "TITLE": "Notifications",

@@ -242,7 +242,11 @@
     "COMMENT_PLACEHOLDER": "Proporcione un comentario...",
     "COMMENT_LABEL": "Comentario",
     "AUDIT_TRAIL": "Registro de Auditoria",
-    "NO_AUDIT": "No se encontraron entradas de auditoria."
+    "NO_AUDIT": "No se encontraron entradas de auditoria.",
+    "STEP_LABEL": "Paso {{step}} - Aprobador {{approver}}",
+    "SUBMIT_DECISION_STEP": "Enviar Decision para el Paso {{step}}",
+    "COMMENT_REQUIRED_LABEL": "Comentario (requerido)",
+    "COMMENT_OPTIONAL_LABEL": "Comentario (opcional)"
   },
   "NOTIFICATIONS": {
     "TITLE": "Notificaciones",
