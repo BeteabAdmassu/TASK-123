@@ -5,6 +5,8 @@ import { AuthGuard } from './core/guards/auth.guard';
 
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { RecruitingComponent } from './features/recruiting/recruiting.component';
+import { ProjectDetailComponent } from './features/recruiting/project-detail.component';
+import { PostingDetailComponent } from './features/recruiting/posting-detail.component';
 import { CandidateDetailComponent } from './features/candidate-detail/candidate-detail.component';
 import { ServiceCatalogComponent } from './features/service-catalog/service-catalog.component';
 import { ApprovalsComponent } from './features/approvals/approvals.component';
@@ -25,13 +27,11 @@ const routes: Routes = [
   },
   {
     path: 'recruiting',
-    component: RecruitingComponent,
     canActivate: [AuthGuard],
     children: [
-      { path: '', redirectTo: 'projects', pathMatch: 'full' },
-      { path: 'projects', component: RecruitingComponent },
-      { path: 'project/:id', component: RecruitingComponent },
-      { path: 'postings', component: RecruitingComponent }
+      { path: '', component: RecruitingComponent },
+      { path: 'project/:id', component: ProjectDetailComponent },
+      { path: 'posting/:id', component: PostingDetailComponent }
     ]
   },
   {

@@ -68,7 +68,7 @@ npm start
 ### Desktop Build (Signed MSI Installer)
 
 The production deliverable is a signed Windows MSI installer built via Electron + electron-builder.
-See [`docs/desktop-build.md`](../docs/desktop-build.md) for the full pipeline.
+See `docs/desktop-build.md` in the task root for the full pipeline.
 
 ```bash
 # 1. Build backend

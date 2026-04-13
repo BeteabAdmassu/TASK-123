@@ -4,6 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, Subject, takeUntil } from 'rxjs';
 
 import { AuthService } from './core/auth/auth.service';
+import { ApiService } from './core/services/api.service';
 import { CheckpointService } from './core/services/checkpoint.service';
 import { KeyboardService } from './core/services/keyboard.service';
 import { NotificationBadgeService } from './core/services/notification-badge.service';
@@ -23,6 +24,12 @@ export class AppComponent implements OnInit, OnDestroy {
   /** Emits when Alt+N is pressed; feature components subscribe to navigate to the next record */
   nextRecord$ = new BehaviorSubject<number>(0);
 
+  /** Quick search state (Ctrl+K) */
+  showSearchDialog = false;
+  searchQuery = '';
+  searchResults: { candidates: any[]; projects: any[]; postings: any[]; services: any[] } | null = null;
+  searchLoading = false;
+
   navItems = [
     { label: 'NAV.DASHBOARD', route: '/dashboard', icon: 'dashboard' },
     { label: 'NAV.RECRUITING', route: '/recruiting', icon: 'work' },
@@ -37,6 +44,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private authService: AuthService,
+    private api: ApiService,
     private checkpointService: CheckpointService,
     private keyboardService: KeyboardService,
     private notificationBadgeService: NotificationBadgeService,
@@ -108,7 +116,36 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   onSearchOpen(): void {
-    // Search dialog would be opened here by a search component
+    this.showSearchDialog = true;
+    this.searchQuery = '';
+    this.searchResults = null;
+  }
+
+  onSearchClose(): void {
+    this.showSearchDialog = false;
+    this.searchQuery = '';
+    this.searchResults = null;
+  }
+
+  onSearchSubmit(): void {
+    if (!this.searchQuery.trim()) return;
+    this.searchLoading = true;
+    this.api.get<{ results: typeof this.searchResults }>('/search', { q: this.searchQuery.trim() })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => { this.searchResults = res.results || null; this.searchLoading = false; },
+        error: () => { this.searchResults = null; this.searchLoading = false; }
+      });
+  }
+
+  navigateFromSearch(type: string, id: string): void {
+    this.onSearchClose();
+    switch (type) {
+      case 'candidate': this.router.navigate(['/candidates', id]); break;
+      case 'project': this.router.navigate(['/recruiting/project', id]); break;
+      case 'posting': this.router.navigate(['/recruiting/posting', id]); break;
+      case 'service': this.router.navigate(['/service-catalog']); break;
+    }
   }
 
   logout(): void {

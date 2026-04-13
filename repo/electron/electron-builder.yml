@@ -45,12 +45,15 @@ nsis:
   allowToChangeInstallationDirectory: true
   installerIcon: resources/icon.ico
   uninstallerIcon: resources/icon.ico
-  include: installer/nsis-hooks.nsh
+  include: ../installer/nsis-hooks.nsh
 
 linux:
   target:
     - AppImage
 
+# PostgreSQL installer placed by build pipeline before packaging (not committed).
 extraFiles:
-  - from: installer/postgresql-16-setup.exe
+  - from: ../installer/postgresql-16-setup.exe
     to: resources/postgresql
+    filter:
+      - "**/*"

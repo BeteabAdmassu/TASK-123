@@ -538,11 +538,12 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
       const { message } = request.body;
 
       try {
-        // Get candidate with posting info to find the recruiter
+        // Get candidate with project ownership to find the recruiter
         const candidateResult = await fastify.db.query(
-          `SELECT c.*, jp.created_by AS posting_created_by, jp.project_id
+          `SELECT c.*, jp.project_id, rp.created_by AS project_owner
            FROM candidates c
            LEFT JOIN job_postings jp ON jp.id = c.job_posting_id
+           LEFT JOIN recruiting_projects rp ON rp.id = jp.project_id
            WHERE c.id = $1`,
           [id]
         );
@@ -553,17 +554,8 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
 
         const candidate = candidateResult.rows[0];
 
-        // Find the recruiter: use the posting creator or fall back to the project creator
-        let recruiterId = candidate.posting_created_by;
-        if (!recruiterId && candidate.project_id) {
-          const projectResult = await fastify.db.query(
-            'SELECT created_by FROM recruiting_projects WHERE id = $1',
-            [candidate.project_id]
-          );
-          if (projectResult.rows.length > 0) {
-            recruiterId = projectResult.rows[0].created_by;
-          }
-        }
+        // Find the recruiter via project ownership
+        let recruiterId = candidate.project_owner;
 
         // Fall back to requesting user if no recruiter found
         if (!recruiterId) {

@@ -375,7 +375,7 @@ export class ServiceCatalogComponent implements OnInit, OnDestroy {
 
   deletePricingRule(rule: PricingRule): void {
     if (!this.selectedSpec) return;
-    this.api.delete(`/pricing/${rule.id}`).pipe(
+    this.api.delete(`/services/pricing/${rule.id}`).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {

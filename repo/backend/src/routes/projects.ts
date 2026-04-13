@@ -83,6 +83,14 @@ export default async function projectRoutes(fastify: FastifyInstance): Promise<v
         const params: unknown[] = [];
         let paramIndex = 1;
 
+        // Object-level: non-admin/reviewer users see only their own projects
+        const userRole = request.user.role;
+        if (userRole !== 'admin' && userRole !== 'reviewer') {
+          conditions.push(`created_by = $${paramIndex}`);
+          params.push(request.user.id);
+          paramIndex++;
+        }
+
         if (status) {
           conditions.push(`status = $${paramIndex}`);
           params.push(status);

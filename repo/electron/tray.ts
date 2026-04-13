@@ -64,42 +64,37 @@ function buildTrayIcon(count: number): Electron.NativeImage {
 // ---------------------------------------------------------------------------
 
 /**
- * Fetch /api/notifications/pending-count from the Fastify backend.
- * Uses raw http to avoid requiring node-fetch in the main process.
- * Returns the count number or 0 on any error.
+ * Fetch badge count from the Fastify backend.
+ * Combines: pending notifications + pending approval steps assigned to the user.
+ * Returns the total count or 0 on any error.
  */
 function fetchPendingCount(backendUrl: string): Promise<number> {
-  return new Promise<number>((resolve) => {
-    if (!sessionToken) {
-      resolve(0); // Not authenticated yet — skip
-      return;
-    }
+  if (!sessionToken) return Promise.resolve(0);
 
-    const url = `${backendUrl}/api/notifications/pending-count`;
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${sessionToken}`,
-    };
+  const headers: Record<string, string> = { Authorization: `Bearer ${sessionToken}` };
 
-    const req = http.get(url, { timeout: 5000, headers }, (res) => {
-      let body = '';
-      res.on('data', (chunk: Buffer) => {
-        body += chunk.toString();
+  const fetchJson = (urlPath: string): Promise<Record<string, unknown>> =>
+    new Promise((resolve) => {
+      const req = http.get(`${backendUrl}${urlPath}`, { timeout: 5000, headers }, (res) => {
+        let body = '';
+        res.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+        res.on('end', () => {
+          try { resolve(JSON.parse(body)); } catch { resolve({}); }
+        });
       });
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(body) as { count?: number };
-          resolve(typeof parsed.count === 'number' ? parsed.count : 0);
-        } catch {
-          resolve(0);
-        }
-      });
+      req.on('error', () => resolve({}));
+      req.on('timeout', () => { req.destroy(); resolve({}); });
     });
 
-    req.on('error', () => resolve(0));
-    req.on('timeout', () => {
-      req.destroy();
-      resolve(0);
-    });
+  return Promise.all([
+    fetchJson('/api/notifications/pending-count'),
+    fetchJson('/api/approvals?status=pending&page=1&pageSize=1'),
+  ]).then(([notifRes, approvalRes]) => {
+    const notifCount = typeof (notifRes as { count?: number }).count === 'number'
+      ? (notifRes as { count: number }).count : 0;
+    const approvalCount = typeof (approvalRes as { total?: number }).total === 'number'
+      ? (approvalRes as { total: number }).total : 0;
+    return notifCount + approvalCount;
   });
 }
 

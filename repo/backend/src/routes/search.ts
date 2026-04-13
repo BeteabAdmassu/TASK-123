@@ -30,28 +30,45 @@ export default async function searchRoutes(fastify: FastifyInstance): Promise<vo
       try {
         const { q } = request.query;
         const searchTerm = `%${q}%`;
+        const userId = request.user.id;
+        const userRole = request.user.role;
+        const isPrivileged = userRole === 'admin' || userRole === 'reviewer';
 
-        // Search candidates by first_name or last_name
-        const candidatesResult = await fastify.db.query(
-          `SELECT id, first_name, last_name, email, status
-           FROM candidates
-           WHERE (first_name ILIKE $1 OR last_name ILIKE $1)
-             AND archived_at IS NULL
-           ORDER BY last_name ASC, first_name ASC
-           LIMIT 10`,
-          [searchTerm],
-        );
+        // Search candidates — scoped by project ownership for non-privileged users
+        const candidatesResult = isPrivileged
+          ? await fastify.db.query(
+              `SELECT id, first_name, last_name, email, status
+               FROM candidates
+               WHERE (first_name ILIKE $1 OR last_name ILIKE $1)
+                 AND archived_at IS NULL
+               ORDER BY last_name ASC, first_name ASC
+               LIMIT 10`,
+              [searchTerm])
+          : await fastify.db.query(
+              `SELECT c.id, c.first_name, c.last_name, c.email, c.status
+               FROM candidates c
+               JOIN job_postings jp ON jp.id = c.job_posting_id
+               JOIN recruiting_projects rp ON rp.id = jp.project_id
+               WHERE (c.first_name ILIKE $1 OR c.last_name ILIKE $1)
+                 AND c.archived_at IS NULL AND rp.created_by = $2
+               ORDER BY c.last_name ASC, c.first_name ASC
+               LIMIT 10`,
+              [searchTerm, userId]);
 
-        // Search projects by title
-        const projectsResult = await fastify.db.query(
-          `SELECT id, title, status
-           FROM recruiting_projects
-           WHERE title ILIKE $1
-             AND archived_at IS NULL
-           ORDER BY title ASC
-           LIMIT 10`,
-          [searchTerm],
-        );
+        // Search projects — scoped by ownership for non-privileged users
+        const projectsResult = isPrivileged
+          ? await fastify.db.query(
+              `SELECT id, title, status
+               FROM recruiting_projects
+               WHERE title ILIKE $1 AND archived_at IS NULL
+               ORDER BY title ASC LIMIT 10`,
+              [searchTerm])
+          : await fastify.db.query(
+              `SELECT id, title, status
+               FROM recruiting_projects
+               WHERE title ILIKE $1 AND archived_at IS NULL AND created_by = $2
+               ORDER BY title ASC LIMIT 10`,
+              [searchTerm, userId]);
 
         // Search job postings by title
         const postingsResult = await fastify.db.query(
