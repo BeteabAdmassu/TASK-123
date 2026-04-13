@@ -169,8 +169,8 @@ describe('ApprovalEngine', () => {
           }],
         })
         .mockResolvedValueOnce({ rowCount: 1 })
-        .mockResolvedValueOnce({ rowCount: 1 })
         // Pending steps count = 1 (another step still pending)
+        // Note: createAuditEntry is jest-mocked so does not consume a db.query mock
         .mockResolvedValueOnce({ rows: [{ count: '1' }] });
 
       const result = await processApprovalDecision(

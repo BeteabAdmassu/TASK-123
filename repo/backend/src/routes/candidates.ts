@@ -261,7 +261,7 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
           const row = result.rows[0];
           // Recruiter must own the project, or be assigned as approver on a related approval
           if (userRole === 'recruiter' && row.project_owner !== userId) {
-            return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate' });
+            return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate\'s resources' });
           }
           if (userRole === 'approver') {
             // Approvers may view candidates only if they have an approval step assignment for this candidate
@@ -273,7 +273,7 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
               [id, userId]
             );
             if (approverCheck.rows.length === 0) {
-              return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate' });
+              return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate\'s resources' });
             }
           }
         }
@@ -307,6 +307,12 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
       const { first_name, last_name, email, phone, ssn, dob, compensation, eeoc_disposition } = request.body;
 
       try {
+        // Object-level authorization first — prevents candidate-ID enumeration
+        const access = await candidateAccess.checkCandidateAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate\'s resources' });
+        }
+
         const existing = await fastify.db.query(
           'SELECT * FROM candidates WHERE id = $1',
           [id]
@@ -447,6 +453,12 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
       const { tagId } = request.body;
 
       try {
+        // Object-level authorization first — prevents candidate-ID enumeration
+        const access = await candidateAccess.checkCandidateAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate\'s resources' });
+        }
+
         // Verify candidate exists
         const candidateCheck = await fastify.db.query(
           'SELECT id FROM candidates WHERE id = $1',
@@ -507,6 +519,12 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
       const { id, tagId } = request.params;
 
       try {
+        // Object-level authorization first — prevents candidate-ID enumeration
+        const access = await candidateAccess.checkCandidateAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate\'s resources' });
+        }
+
         const result = await fastify.db.query(
           'DELETE FROM candidate_tags WHERE candidate_id = $1 AND tag_id = $2 RETURNING *',
           [id, tagId]
@@ -545,6 +563,12 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
       const { message } = request.body;
 
       try {
+        // Object-level authorization first — prevents candidate-ID enumeration
+        const access = await candidateAccess.checkCandidateAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this candidate\'s resources' });
+        }
+
         // Get candidate with project ownership to find the recruiter
         const candidateResult = await fastify.db.query(
           `SELECT c.*, jp.project_id, rp.created_by AS project_owner

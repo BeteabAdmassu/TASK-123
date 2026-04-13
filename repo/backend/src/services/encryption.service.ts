@@ -40,7 +40,7 @@ export function decryptField(data: Buffer): string {
 }
 
 export function maskField(value: string, visibleChars: number = 4): string {
-  if (value.length <= visibleChars) return '****';
+  if (value.length < visibleChars) return '****';
   return '*'.repeat(value.length - visibleChars) + value.slice(-visibleChars);
 }
 
