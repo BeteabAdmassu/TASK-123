@@ -156,10 +156,14 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
 
   loadResumes(): void {
     this.resumesLoading = true;
-    this.api.get<ResumeVersion[]>(`/candidates/${this.candidateId}/resumes`).pipe(
+    this.api.get<{ data: ResumeVersion[] } | ResumeVersion[]>(`/candidates/${this.candidateId}/resumes`).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
-      next: (versions) => { this.resumeVersions = Array.isArray(versions) ? versions : []; this.resumesLoading = false; },
+      next: (res) => {
+        // Backend returns { data: [...] } envelope
+        this.resumeVersions = Array.isArray(res) ? res : ((res as { data: ResumeVersion[] }).data || []);
+        this.resumesLoading = false;
+      },
       error: () => { this.resumeVersions = []; this.resumesLoading = false; }
     });
   }

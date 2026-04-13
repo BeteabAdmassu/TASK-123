@@ -126,6 +126,22 @@ async function start() {
   try {
     await fastify.listen({ port: config.port, host: config.host });
     fastify.log.info(`TalentOps server running on http://${config.host}:${config.port}`);
+
+    // Start notification retry processor (every 30 seconds)
+    const { processRetryQueue } = await import('./services/notification.service');
+    const retryInterval = setInterval(async () => {
+      try {
+        const count = await processRetryQueue(fastify.db);
+        if (count > 0) {
+          fastify.log.info({ retried: count }, 'Notification retry cycle completed');
+        }
+      } catch (err) {
+        fastify.log.error({ err }, 'Notification retry cycle failed');
+      }
+    }, 30_000);
+
+    // Clear interval on shutdown (use process signal since hooks can't be added post-listen)
+    process.on('beforeExit', () => { clearInterval(retryInterval); });
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

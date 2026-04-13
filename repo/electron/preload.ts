@@ -80,6 +80,11 @@ interface ConfigApi {
   getBackendUrl(): Promise<string>;
 }
 
+interface AuthBridgeApi {
+  /** Pass JWT token to main process for tray/checkpoint backend calls */
+  setToken(token: string | null): void;
+}
+
 /** The full API exposed to the renderer under `window.electronAPI` */
 interface ElectronBridgeApi {
   window: WindowManagementApi;
@@ -90,6 +95,7 @@ interface ElectronBridgeApi {
   navigation: NavigationApi;
   shortcuts: ShortcutApi;
   config: ConfigApi;
+  auth: AuthBridgeApi;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +241,14 @@ const electronBridge: ElectronBridgeApi = {
   config: {
     getBackendUrl() {
       return ipcRenderer.invoke('config:backend-url');
+    },
+  },
+
+  // ----- Auth (renderer → main process session sharing) -----
+  auth: {
+    /** Pass JWT token to main process for tray/checkpoint backend calls */
+    setToken(token: string | null) {
+      ipcRenderer.send('auth:set-token', token);
     },
   },
 };

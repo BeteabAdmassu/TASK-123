@@ -13,6 +13,20 @@ let lastPendingCount = 0;
 /** How often to poll the backend for pending notification count (ms) */
 const POLL_INTERVAL_MS = 30_000;
 
+/**
+ * Session token obtained from the renderer via IPC.
+ * All backend calls MUST include this as `Authorization: Bearer <token>`.
+ */
+let sessionToken: string | null = null;
+
+export function setSessionToken(token: string | null): void {
+  sessionToken = token;
+}
+
+export function getSessionToken(): string | null {
+  return sessionToken;
+}
+
 // ---------------------------------------------------------------------------
 // Badge / overlay helpers
 // ---------------------------------------------------------------------------
@@ -56,9 +70,17 @@ function buildTrayIcon(count: number): Electron.NativeImage {
  */
 function fetchPendingCount(backendUrl: string): Promise<number> {
   return new Promise<number>((resolve) => {
-    const url = `${backendUrl}/api/notifications/pending-count`;
+    if (!sessionToken) {
+      resolve(0); // Not authenticated yet — skip
+      return;
+    }
 
-    const req = http.get(url, { timeout: 5000 }, (res) => {
+    const url = `${backendUrl}/api/notifications/pending-count`;
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${sessionToken}`,
+    };
+
+    const req = http.get(url, { timeout: 5000, headers }, (res) => {
       let body = '';
       res.on('data', (chunk: Buffer) => {
         body += chunk.toString();

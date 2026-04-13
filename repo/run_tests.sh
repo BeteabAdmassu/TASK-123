@@ -523,6 +523,12 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | head -n -1)
 test_status "GET /api/approvals returns inbox" "200" "$HTTP_CODE" "$BODY"
 
+# Recruiter can access active templates (not admin-only)
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/approval-templates/active" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/approval-templates/active as recruiter returns 200" "200" "$HTTP_CODE"
+
 # ============================================================
 # 12. Notifications
 # ============================================================
@@ -696,7 +702,68 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 test_status "POST /api/candidates as approver returns 403" "403" "$HTTP_CODE"
 
 # ============================================================
-# 22. Contract / Path Alignment Tests
+# 22. Reveal / Resume / Approval Object-Level Auth Tests
+# ============================================================
+echo ""
+echo "--- Sensitive Reveal, Resume, Approval Object Auth ---"
+
+# Approver should NOT be able to reveal sensitive fields (role restricted)
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/candidates/${CANDIDATE_ID}/reveal" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}" \
+  -d '{"password":"approver","field":"ssn"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "POST /api/candidates/:id/reveal as approver returns 403 (role)" "403" "$HTTP_CODE"
+
+# Approver should NOT be able to list resumes for unrelated candidate
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/candidates/${CANDIDATE_ID}/resumes" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/candidates/:id/resumes as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# Approver should NOT be able to get latest resume for unrelated candidate
+RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/candidates/${CANDIDATE_ID}/resumes/latest" \
+  -H "Authorization: Bearer ${APPROVER_TOKEN}")
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+test_status "GET /api/candidates/:id/resumes/latest as unrelated approver returns 403" "403" "$HTTP_CODE"
+
+# Verify candidate detail does NOT leak ssn_hash or encrypted columns
+RESPONSE=$(curl -s "${BASE_URL}/candidates/${CANDIDATE_ID}" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}")
+SSN_HASH_PRESENT=$(echo "$RESPONSE" | jq 'has("ssn_hash")' 2>/dev/null)
+SSN_ENCRYPTED_PRESENT=$(echo "$RESPONSE" | jq 'has("ssn_encrypted")' 2>/dev/null)
+SSN_MASKED_PRESENT=$(echo "$RESPONSE" | jq 'has("ssn_masked")' 2>/dev/null)
+if [ "$SSN_HASH_PRESENT" = "false" ] && [ "$SSN_ENCRYPTED_PRESENT" = "false" ]; then
+  log_pass "Candidate detail does not leak ssn_hash or ssn_encrypted"
+else
+  log_fail "Sensitive field leakage" "ssn_hash=$SSN_HASH_PRESENT, ssn_encrypted=$SSN_ENCRYPTED_PRESENT"
+fi
+if [ "$SSN_MASKED_PRESENT" = "true" ]; then
+  log_pass "Candidate detail includes ssn_masked field"
+else
+  log_fail "Masking contract" "ssn_masked field missing from response"
+fi
+
+# Reviewer should NOT access approval detail for requests they didn't create / aren't assigned to
+# First get an approval request ID from the earlier credit change test
+APPROVAL_RESPONSE=$(curl -s "${BASE_URL}/approvals" \
+  -H "Authorization: Bearer ${ADMIN_TOKEN}")
+TEST_APPROVAL_ID=$(echo "$APPROVAL_RESPONSE" | jq -r '.data[0].id // empty' 2>/dev/null)
+
+if [ -n "$TEST_APPROVAL_ID" ]; then
+  RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/approvals/${TEST_APPROVAL_ID}" \
+    -H "Authorization: Bearer ${REVIEWER_TOKEN}")
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  test_status "GET /api/approvals/:id as unrelated reviewer returns 403" "403" "$HTTP_CODE"
+
+  RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/approvals/${TEST_APPROVAL_ID}/audit" \
+    -H "Authorization: Bearer ${REVIEWER_TOKEN}")
+  HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+  test_status "GET /api/approvals/:id/audit as unrelated reviewer returns 403" "403" "$HTTP_CODE"
+fi
+
+# ============================================================
+# 23. Contract / Path Alignment Tests
 # ============================================================
 echo ""
 echo "--- Endpoint Contract Tests ---"

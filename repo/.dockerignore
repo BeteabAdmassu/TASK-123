@@ -1,19 +1,19 @@
-# PLACEHOLDER — replace for the actual tech stack
-# Place .dockerignore in each build context directory if using subdirs
-node_modules
-__pycache__
-*.pyc
+# Root-level .dockerignore (used by backend build with context: .)
+frontend/node_modules
+frontend/dist
+**/.angular
+**/coverage
+**/.env
+**/.env.*
+**/*.log
 .git
 .gitignore
-.env
-.env.*
-!.env.example
 .tmp
-coverage
-*.md
-!README.md
-docker-compose*.yml
-run_tests.sh
 .vscode
 .idea
 .DS_Store
+**/*.test.ts
+**/*.spec.ts
+electron/
+installer/
+docs/

@@ -142,11 +142,12 @@ export class ResumeEditorComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.api.get<ResumeVersion[]>(`/candidates/${this.candidateId}/resumes`).pipe(
+    this.api.get<{ data: ResumeVersion[] } | ResumeVersion[]>(`/candidates/${this.candidateId}/resumes`).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
-      next: (versions) => {
-        this.versions = Array.isArray(versions) ? versions : [];
+      next: (res) => {
+        // Backend returns { data: [...] } envelope
+        this.versions = Array.isArray(res) ? res : ((res as { data: ResumeVersion[] }).data || []);
         if (this.resumeId) {
           this.selectedVersion = this.versions.find(v => v.id === this.resumeId) || null;
         } else if (this.versions.length > 0) {

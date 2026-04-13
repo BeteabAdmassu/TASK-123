@@ -203,6 +203,12 @@ function registerIpcHandlers(): void {
   ipcMain.handle('config:backend-url', () => {
     return BACKEND_URL;
   });
+
+  // Receive JWT token from renderer after login — shared with tray and checkpoint
+  ipcMain.on('auth:set-token', (_event, token: string | null) => {
+    const { setSessionToken } = require('./tray');
+    setSessionToken(token);
+  });
 }
 
 // ---------------------------------------------------------------------------

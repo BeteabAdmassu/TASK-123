@@ -33,6 +33,8 @@ export class AuthService {
         localStorage.setItem(this.TOKEN_KEY, response.token);
         localStorage.setItem('talentops_user', JSON.stringify(response.user));
         this.currentUserSubject.next(response.user);
+        // Propagate token to Electron main process for tray/checkpoint auth
+        this.syncTokenToElectron(response.token);
       })
     );
   }
@@ -82,6 +84,21 @@ export class AuthService {
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem('talentops_user');
     this.currentUserSubject.next(null);
+    // Clear token from Electron main process
+    this.syncTokenToElectron(null);
+  }
+
+  /** Send JWT to Electron main process (no-op in browser-only mode). */
+  private syncTokenToElectron(token: string | null): void {
+    try {
+      const electronAPI = (window as Record<string, unknown>)['electronAPI'] as
+        { auth?: { setToken: (t: string | null) => void } } | undefined;
+      if (electronAPI?.auth?.setToken) {
+        electronAPI.auth.setToken(token);
+      }
+    } catch {
+      // Not running in Electron — ignore
+    }
   }
 
   private loadStoredUser(): User | null {

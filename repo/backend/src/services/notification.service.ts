@@ -109,3 +109,69 @@ export async function retryNotification(
 
   return true;
 }
+
+/** Backoff delays in ms for retry attempts (2s, 5s, 10s). */
+const RETRY_BACKOFF_MS = [2000, 5000, 10000];
+
+/**
+ * Process failed notifications: retry rendering with exponential backoff.
+ * Called periodically (e.g. every 30 seconds) by the server tick loop.
+ * For each failed notification under max_retries, re-attempts rendering
+ * and updates status accordingly.
+ */
+export async function processRetryQueue(db: Pool): Promise<number> {
+  const failed = await db.query(
+    `SELECT id, template_key, template_vars, retry_count, max_retries, type
+     FROM notification_tasks
+     WHERE status = 'failed' AND retry_count < max_retries
+     ORDER BY updated_at ASC
+     LIMIT 10`
+  );
+
+  let processed = 0;
+
+  for (const task of failed.rows) {
+    const backoffIdx = Math.min(task.retry_count, RETRY_BACKOFF_MS.length - 1);
+    const backoffMs = RETRY_BACKOFF_MS[backoffIdx];
+
+    // Simple delay within the processing loop
+    await new Promise(resolve => setTimeout(resolve, backoffMs));
+
+    try {
+      // Re-render the notification content
+      const tplResult = await db.query(
+        'SELECT body FROM notification_templates WHERE template_key = $1 AND is_active = true',
+        [task.template_key]
+      );
+
+      if (tplResult.rows.length === 0) {
+        // Template no longer exists — mark as permanently failed
+        await db.query(
+          `UPDATE notification_tasks SET status = 'failed', retry_count = max_retries, updated_at = NOW() WHERE id = $1`,
+          [task.id]
+        );
+        continue;
+      }
+
+      const rendered = renderTemplate(tplResult.rows[0].body, task.template_vars);
+
+      const newStatus = task.type === 'in_app' ? 'generated' : 'pending';
+      await db.query(
+        `UPDATE notification_tasks
+         SET rendered_content = $1, status = $2, retry_count = retry_count + 1, updated_at = NOW()
+         WHERE id = $3`,
+        [rendered, newStatus, task.id]
+      );
+
+      processed++;
+    } catch {
+      // Retry failed again — increment count
+      await db.query(
+        `UPDATE notification_tasks SET retry_count = retry_count + 1, updated_at = NOW() WHERE id = $1`,
+        [task.id]
+      );
+    }
+  }
+
+  return processed;
+}

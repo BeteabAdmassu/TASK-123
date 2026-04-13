@@ -116,6 +116,13 @@ async function collectAllWindowStates(
  * Uses raw http.request to avoid external dependencies in the main process.
  */
 function saveCheckpoint(backendUrl: string, payload: CheckpointPayload): Promise<void> {
+  // Import session token from tray module (shared auth state for main process)
+  let token: string | null = null;
+  try { token = require('./tray').getSessionToken(); } catch { /* tray not loaded */ }
+  if (!token) {
+    return Promise.reject(new Error('No auth token — checkpoint skipped'));
+  }
+
   return new Promise<void>((resolve, reject) => {
     const url = new URL('/api/checkpoint', backendUrl);
     const body = JSON.stringify(payload);
@@ -129,6 +136,7 @@ function saveCheckpoint(backendUrl: string, payload: CheckpointPayload): Promise
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),
+          'Authorization': `Bearer ${token}`,
         },
         timeout: 5000,
       },
@@ -162,6 +170,10 @@ function saveCheckpoint(backendUrl: string, payload: CheckpointPayload): Promise
  * GET /api/checkpoint/latest — fetch the most recent checkpoint for the user.
  */
 function fetchLatestCheckpoint(backendUrl: string): Promise<CheckpointResponse | null> {
+  let token: string | null = null;
+  try { token = require('./tray').getSessionToken(); } catch { /* tray not loaded */ }
+  if (!token) return Promise.resolve(null);
+
   return new Promise((resolve) => {
     const url = new URL('/api/checkpoint/latest', backendUrl);
 
@@ -170,6 +182,7 @@ function fetchLatestCheckpoint(backendUrl: string): Promise<CheckpointResponse |
         hostname: url.hostname,
         port: url.port,
         path: url.pathname,
+        headers: { Authorization: `Bearer ${token}` },
         timeout: 5000,
       },
       (res) => {

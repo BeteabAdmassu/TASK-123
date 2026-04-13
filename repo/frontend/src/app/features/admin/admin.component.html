@@ -197,6 +197,16 @@
                   <mat-option value="any">Any (one is enough)</mat-option>
                 </mat-select>
               </mat-form-field>
+              <mat-form-field appearance="outline" class="full-width">
+                <mat-label>Step 1 Approver</mat-label>
+                <mat-select formControlName="step_approver_id">
+                  <mat-option *ngFor="let u of approverUsers" [value]="u.id">
+                    {{ u.username }}
+                  </mat-option>
+                </mat-select>
+                <mat-error>An approver is required</mat-error>
+                <mat-hint *ngIf="approverUsers.length === 0">No approver-role users found</mat-hint>
+              </mat-form-field>
               <div class="form-actions">
                 <button mat-button type="button" (click)="showTemplateForm = false">Cancel</button>
                 <button mat-raised-button color="primary" type="submit"

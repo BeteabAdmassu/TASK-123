@@ -1,7 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as crypto from 'crypto';
 import { processApprovalDecision } from '../services/approval-engine';
 import { createAuditEntry } from '../services/audit.service';
 import { createNotification } from '../services/notification.service';
+import { config } from '../config';
 
 interface CreateApprovalBody {
   template_id: string;
@@ -13,6 +17,8 @@ interface CreateApprovalBody {
 interface StepDecisionBody {
   decision: 'approved' | 'rejected';
   comment?: string;
+  attachment_base64?: string;
+  attachment_name?: string;
 }
 
 interface IdParam {
@@ -51,10 +57,14 @@ const stepDecisionSchema = {
     properties: {
       decision: { type: 'string', enum: ['approved', 'rejected'] },
       comment: { type: 'string', maxLength: 2000 },
+      attachment_base64: { type: 'string' },
+      attachment_name: { type: 'string', maxLength: 255 },
     },
     additionalProperties: false,
   },
 };
+
+const MAX_APPROVAL_ATTACHMENT_BYTES = 20 * 1024 * 1024; // 20 MB
 
 const listApprovalsQuerySchema = {
   querystring: {
@@ -236,6 +246,7 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
   );
 
   // GET /api/approvals/:id - get request with all steps
+  // Object-level: requester, assigned approver on any step, or admin
   fastify.get<{ Params: IdParam }>(
     '/api/approvals/:id',
     {
@@ -244,6 +255,8 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
     async (request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
+        const userId = request.user.id;
+        const userRole = request.user.role;
 
         const requestResult = await fastify.db.query(
           `SELECT id, template_id, entity_type, entity_id, requested_by, approval_mode, status,
@@ -257,6 +270,20 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
           return reply.status(404).send({ error: 'Not Found', message: 'Approval request not found' });
         }
 
+        const approvalReq = requestResult.rows[0];
+
+        // Object-level authorization
+        if (userRole !== 'admin') {
+          const isRequester = approvalReq.requested_by === userId;
+          const isAssignedApprover = await fastify.db.query(
+            'SELECT 1 FROM approval_steps WHERE request_id = $1 AND approver_id = $2 LIMIT 1',
+            [id, userId]
+          );
+          if (!isRequester && isAssignedApprover.rows.length === 0) {
+            return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this approval request' });
+          }
+        }
+
         const stepsResult = await fastify.db.query(
           `SELECT id, request_id, step_order, approver_id, status, comment,
                   attachment_path, attachment_size, decided_at, created_at
@@ -266,7 +293,7 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
           [id],
         );
 
-        return reply.status(200).send({ ...requestResult.rows[0], steps: stepsResult.rows });
+        return reply.status(200).send({ ...approvalReq, steps: stepsResult.rows });
       } catch (err) {
         fastify.log.error(err, 'Failed to get approval request');
         return reply.status(500).send({ error: 'Internal Server Error', message: 'Failed to get approval request' });
@@ -284,8 +311,28 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
     async (request: FastifyRequest<{ Params: StepParams; Body: StepDecisionBody }>, reply: FastifyReply) => {
       try {
         const { id, stepId } = request.params;
-        const { decision, comment } = request.body;
+        const { decision, comment, attachment_base64, attachment_name } = request.body;
         const userId = request.user.id;
+
+        // Handle optional attachment (up to 20 MB, base64-encoded in JSON body)
+        let attachmentPath: string | null = null;
+        let attachmentSize: number | null = null;
+
+        if (attachment_base64 && attachment_name) {
+          const buf = Buffer.from(attachment_base64, 'base64');
+          if (buf.length > MAX_APPROVAL_ATTACHMENT_BYTES) {
+            return reply.status(413).send({
+              error: 'Payload Too Large',
+              message: `Attachment exceeds maximum size of 20 MB (got ${(buf.length / 1024 / 1024).toFixed(1)} MB)`,
+            });
+          }
+          const uploadDir = config.upload.uploadDir;
+          if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+          const safeName = `approval_${stepId}_${crypto.randomUUID()}${path.extname(attachment_name)}`;
+          attachmentPath = path.join(uploadDir, safeName);
+          fs.writeFileSync(attachmentPath, buf);
+          attachmentSize = buf.length;
+        }
 
         const result = await processApprovalDecision(
           fastify.db,
@@ -294,6 +341,8 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
           userId,
           decision,
           comment || null,
+          attachmentPath,
+          attachmentSize,
         );
 
         fastify.log.info({ requestId: id, stepId, decision, userId }, 'Approval step decided');
@@ -314,6 +363,7 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
   );
 
   // GET /api/approvals/:id/audit - get audit trail entries for this approval request
+  // Object-level: same scope as detail (requester/assigned-approver/admin)
   fastify.get<{ Params: IdParam }>(
     '/api/approvals/:id/audit',
     {
@@ -322,15 +372,29 @@ export default async function approvalRoutes(fastify: FastifyInstance): Promise<
     async (request: FastifyRequest<{ Params: IdParam }>, reply: FastifyReply) => {
       try {
         const { id } = request.params;
+        const userId = request.user.id;
+        const userRole = request.user.role;
 
         // Verify the approval request exists
         const requestResult = await fastify.db.query(
-          'SELECT id FROM approval_requests WHERE id = $1',
+          'SELECT id, requested_by FROM approval_requests WHERE id = $1',
           [id],
         );
 
         if (requestResult.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Approval request not found' });
+        }
+
+        // Object-level authorization
+        if (userRole !== 'admin') {
+          const isRequester = requestResult.rows[0].requested_by === userId;
+          const isAssignedApprover = await fastify.db.query(
+            'SELECT 1 FROM approval_steps WHERE request_id = $1 AND approver_id = $2 LIMIT 1',
+            [id, userId]
+          );
+          if (!isRequester && isAssignedApprover.rows.length === 0) {
+            return reply.status(403).send({ error: 'Forbidden', message: 'You do not have access to this approval audit' });
+          }
         }
 
         // Get audit entries for the approval request and its steps

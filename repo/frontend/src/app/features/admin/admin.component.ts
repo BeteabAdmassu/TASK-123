@@ -81,6 +81,7 @@ export class AdminComponent implements OnInit, OnDestroy {
   templateForm!: FormGroup;
   showTemplateForm = false;
   isSavingTemplate = false;
+  approverUsers: Array<{ id: string; username: string }> = [];
 
   // Notification Templates
   notifTemplates: NotificationTemplate[] = [];
@@ -126,7 +127,8 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.templateForm = this.fb.group({
       name: ['', Validators.required],
       description: [''],
-      approval_mode: ['joint', Validators.required]
+      approval_mode: ['joint', Validators.required],
+      step_approver_id: ['', Validators.required]
     });
 
     this.notifForm = this.fb.group({
@@ -140,6 +142,7 @@ export class AdminComponent implements OnInit, OnDestroy {
     this.loadUsers();
     this.loadViolationRules();
     this.loadApprovalTemplates();
+    this.loadApproverUsers();
     this.loadNotificationTemplates();
   }
 
@@ -362,13 +365,24 @@ export class AdminComponent implements OnInit, OnDestroy {
     if (this.templateForm.invalid) return;
     this.isSavingTemplate = true;
 
-    this.api.post('/approval-templates', this.templateForm.value).pipe(
+    const formVal = this.templateForm.value;
+    // Build backend-compliant payload with required `steps` array
+    const payload = {
+      name: formVal.name,
+      description: formVal.description || undefined,
+      approval_mode: formVal.approval_mode,
+      steps: [
+        { step_order: 1, approver_id: formVal.step_approver_id }
+      ]
+    };
+
+    this.api.post('/approval-templates', payload).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: () => {
         this.isSavingTemplate = false;
         this.showTemplateForm = false;
-        this.templateForm.reset({ approval_mode: 'joint' });
+        this.templateForm.reset({ approval_mode: 'joint', step_approver_id: '' });
         this.snackBar.open('Template created', 'Close', { duration: 3000 });
         this.loadApprovalTemplates();
       },
@@ -376,6 +390,18 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.isSavingTemplate = false;
         this.snackBar.open('Failed to create template', 'Close', { duration: 3000 });
       }
+    });
+  }
+
+  loadApproverUsers(): void {
+    this.api.get<{ data: Array<{ id: string; username: string; role: string }> }>('/users').pipe(
+      takeUntil(this.destroy$)
+    ).subscribe({
+      next: (res) => {
+        const users = res?.data || (Array.isArray(res) ? res : []);
+        this.approverUsers = users.filter((u: { role: string }) => u.role === 'approver' || u.role === 'admin');
+      },
+      error: () => { this.approverUsers = []; }
     });
   }
 

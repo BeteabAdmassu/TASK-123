@@ -1,0 +1,12 @@
+# Local development override — uses pre-built artifacts when Docker network is unavailable.
+# In CI, use only docker-compose.yml (the primary Dockerfiles build from source).
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.local
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.local

@@ -4,6 +4,7 @@ import { encryptField, decryptField, maskField, deterministicHash } from '../ser
 import { scanCandidate } from '../services/violation-scanner';
 import { createNotification } from '../services/notification.service';
 import { createAuditEntry } from '../services/audit.service';
+import * as candidateAccess from '../services/candidate-access';
 
 interface CandidateBody {
   first_name: string;
@@ -109,11 +110,15 @@ const requestMaterialsSchema = {
 
 function maskCandidateRow(row: Record<string, unknown>): Record<string, unknown> {
   const masked = { ...row };
-  for (const field of SENSITIVE_FIELDS) {
-    if (masked[field]) {
-      masked[field] = '****';
-    }
-  }
+  // Replace raw encrypted columns with clean masked display fields
+  masked.ssn_masked = masked.ssn_encrypted ? '****' : null;
+  masked.dob_masked = masked.dob_encrypted ? '****' : null;
+  masked.compensation_masked = masked.compensation_encrypted ? '****' : null;
+  // Remove internal columns that must not leak to clients
+  delete masked.ssn_encrypted;
+  delete masked.dob_encrypted;
+  delete masked.compensation_encrypted;
+  delete masked.ssn_hash;
   return masked;
 }
 
@@ -356,14 +361,21 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
   );
 
   // POST /api/candidates/:id/reveal - reveal a sensitive field
+  // Restricted to admin/recruiter/reviewer with object-level candidate access + password re-entry
   fastify.post<{ Params: CandidateParams; Body: RevealBody }>(
     '/api/candidates/:id/reveal',
-    { schema: revealSchema, preHandler: [fastify.authenticate] },
+    { schema: revealSchema, preHandler: [fastify.authorize('admin', 'recruiter', 'reviewer')] },
     async (request: FastifyRequest<{ Params: CandidateParams; Body: RevealBody }>, reply: FastifyReply) => {
       const { id } = request.params;
       const { password, field } = request.body;
 
       try {
+        // Object-level authorization: verify caller has access to this candidate
+        const access = await candidateAccess.checkCandidateAccess(fastify.db, id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
+
         // Verify user password
         const userResult = await fastify.db.query(
           'SELECT password_hash FROM users WHERE id = $1',

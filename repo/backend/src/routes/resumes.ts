@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { scanCandidate } from '../services/violation-scanner';
 import { createAuditEntry } from '../services/audit.service';
+import { checkCandidateAccess } from '../services/candidate-access';
 import { config } from '../config';
 
 interface CandidateIdParams {
@@ -44,8 +45,15 @@ export default async function resumeRoutes(fastify: FastifyInstance): Promise<vo
           return reply.status(404).send({ error: 'Not Found', message: 'Candidate not found' });
         }
 
+        // Object-level authorization
+        const access = await checkCandidateAccess(fastify.db, candidateId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
+        }
+
         const result = await fastify.db.query(
-          `SELECT rv.*, u.username AS created_by_username
+          `SELECT rv.id, rv.candidate_id, rv.version_number, rv.content, rv.created_by, rv.created_at,
+                  u.username AS created_by_username
            FROM resume_versions rv
            LEFT JOIN users u ON u.id = rv.created_by
            WHERE rv.candidate_id = $1
@@ -77,6 +85,12 @@ export default async function resumeRoutes(fastify: FastifyInstance): Promise<vo
         );
         if (candidateCheck.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Candidate not found' });
+        }
+
+        // Object-level authorization
+        const access = await checkCandidateAccess(fastify.db, candidateId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         // Get the current max version number
@@ -175,7 +189,8 @@ export default async function resumeRoutes(fastify: FastifyInstance): Promise<vo
 
       try {
         const result = await fastify.db.query(
-          `SELECT rv.*, u.username AS created_by_username
+          `SELECT rv.id, rv.candidate_id, rv.version_number, rv.content, rv.created_by, rv.created_at,
+                  u.username AS created_by_username
            FROM resume_versions rv
            LEFT JOIN users u ON u.id = rv.created_by
            WHERE rv.id = $1`,
@@ -184,6 +199,12 @@ export default async function resumeRoutes(fastify: FastifyInstance): Promise<vo
 
         if (result.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Resume version not found' });
+        }
+
+        // Object-level authorization via candidate ownership
+        const access = await checkCandidateAccess(fastify.db, result.rows[0].candidate_id, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         return reply.send(result.rows[0]);
@@ -209,6 +230,12 @@ export default async function resumeRoutes(fastify: FastifyInstance): Promise<vo
         );
         if (candidateCheck.rows.length === 0) {
           return reply.status(404).send({ error: 'Not Found', message: 'Candidate not found' });
+        }
+
+        // Object-level authorization
+        const access = await checkCandidateAccess(fastify.db, candidateId, request.user.id, request.user.role);
+        if (!access.allowed) {
+          return reply.status(access.status!).send({ error: 'Forbidden', message: access.message });
         }
 
         const result = await fastify.db.query(
