@@ -390,8 +390,17 @@ test_status "POST /api/candidates/:id/scan triggers violation scan" "200" "$HTTP
 echo ""
 echo "=== Candidate Status Transition ==="
 
+# Create an incomplete candidate (no email, no phone) for status-transition testing
+RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BASE_URL}/postings/${POSTING_ID}/candidates" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
+  -d '{"first_name":"Incomplete","last_name":"TestCandidate"}')
+HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+BODY=$(echo "$RESPONSE" | head -n -1)
+INCOMPLETE_CANDIDATE_ID=$(echo "$BODY" | jq -r '.id' 2>/dev/null)
+
 # Status change should fail with 400 when required fields missing (email/phone)
-RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "${BASE_URL}/candidates/${CANDIDATE_ID}/status" \
+RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/candidates/${INCOMPLETE_CANDIDATE_ID}/status" \
   -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"status":"screening"}')
@@ -399,19 +408,19 @@ HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
 BODY=$(echo "$RESPONSE" | sed '$d')
 # Must be 400 because we haven't set email/phone
 if [ "$HTTP_CODE" = "400" ] && echo "$BODY" | grep -q "missing_fields"; then
-  log_pass "PATCH /api/candidates/:id/status returns 400 with missing_fields for incomplete candidate"
+  log_pass "PUT /api/candidates/:id/status returns 400 with missing_fields for incomplete candidate"
 else
-  log_fail "PATCH /api/candidates/:id/status rejects incomplete status change" \
+  log_fail "PUT /api/candidates/:id/status rejects incomplete status change" \
            "Expected HTTP 400 with missing_fields in body, got HTTP $HTTP_CODE. Body: $BODY"
 fi
 
 # Status change to rejected should succeed even with missing fields
-RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH "${BASE_URL}/candidates/${CANDIDATE_ID}/status" \
+RESPONSE=$(curl -s -w "\n%{http_code}" -X PUT "${BASE_URL}/candidates/${INCOMPLETE_CANDIDATE_ID}/status" \
   -H "Authorization: Bearer ${RECRUITER_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{"status":"rejected"}')
 HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-test_status "PATCH /api/candidates/:id/status allows rejection with missing fields" "200" "$HTTP_CODE"
+test_status "PUT /api/candidates/:id/status allows rejection with missing fields" "200" "$HTTP_CODE"
 
 # List violations
 RESPONSE=$(curl -s -w "\n%{http_code}" "${BASE_URL}/violations" \

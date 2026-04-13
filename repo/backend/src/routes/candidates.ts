@@ -394,8 +394,8 @@ export default async function candidateRoutes(fastify: FastifyInstance): Promise
     }
   );
 
-  // PATCH /api/candidates/:id/status - change candidate status with required-field validation
-  fastify.patch<{ Params: CandidateParams; Body: StatusChangeBody }>(
+  // PUT /api/candidates/:id/status - change candidate status with required-field validation
+  fastify.put<{ Params: CandidateParams; Body: StatusChangeBody }>(
     '/api/candidates/:id/status',
     { schema: statusChangeSchema, preHandler: [fastify.authorize('admin', 'recruiter')] },
     async (request: FastifyRequest<{ Params: CandidateParams; Body: StatusChangeBody }>, reply: FastifyReply) => {

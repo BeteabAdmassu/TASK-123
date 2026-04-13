@@ -445,7 +445,7 @@ export class CandidateDetailComponent implements OnInit, OnDestroy {
     this.statusChanging = true;
     this.statusError = '';
 
-    this.api.patch<Candidate>(`/candidates/${this.candidateId}/status`, { status: newStatus }).pipe(
+    this.api.put<Candidate>(`/candidates/${this.candidateId}/status`, { status: newStatus }).pipe(
       takeUntil(this.destroy$)
     ).subscribe({
       next: (updated) => {

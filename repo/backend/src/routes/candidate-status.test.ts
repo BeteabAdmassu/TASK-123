@@ -101,7 +101,7 @@ describe('PATCH /api/candidates/:id/status', () => {
     });
 
     const res = await app.inject({
-      method: 'PATCH',
+      method: 'PUT',
       url: `/api/candidates/${CANDIDATE_ID}/status`,
       headers: { authorization: `Bearer ${signToken(app, recruiter)}` },
       payload: { status: 'screening' },
@@ -131,7 +131,7 @@ describe('PATCH /api/candidates/:id/status', () => {
     });
 
     const res = await app.inject({
-      method: 'PATCH',
+      method: 'PUT',
       url: `/api/candidates/${CANDIDATE_ID}/status`,
       headers: { authorization: `Bearer ${signToken(app, recruiter)}` },
       payload: { status: 'review' },
@@ -171,7 +171,7 @@ describe('PATCH /api/candidates/:id/status', () => {
     });
 
     const res = await app.inject({
-      method: 'PATCH',
+      method: 'PUT',
       url: `/api/candidates/${CANDIDATE_ID}/status`,
       headers: { authorization: `Bearer ${signToken(app, recruiter)}` },
       payload: { status: 'screening' },
@@ -209,7 +209,7 @@ describe('PATCH /api/candidates/:id/status', () => {
     });
 
     const res = await app.inject({
-      method: 'PATCH',
+      method: 'PUT',
       url: `/api/candidates/${CANDIDATE_ID}/status`,
       headers: { authorization: `Bearer ${signToken(app, recruiter)}` },
       payload: { status: 'rejected' },
@@ -226,7 +226,7 @@ describe('PATCH /api/candidates/:id/status', () => {
     });
 
     const res = await app.inject({
-      method: 'PATCH',
+      method: 'PUT',
       url: `/api/candidates/${CANDIDATE_ID}/status`,
       headers: { authorization: `Bearer ${signToken(app, recruiter)}` },
       payload: { status: 'screening' },
