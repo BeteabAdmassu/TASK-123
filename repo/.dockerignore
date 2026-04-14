@@ -1,6 +1,8 @@
-# Root-level .dockerignore (used by backend build with context: .)
+# Root-level .dockerignore (used by both backend and frontend builds with context: .)
 frontend/node_modules
 frontend/dist
+backend/node_modules
+backend/dist
 **/.angular
 **/coverage
 **/.env

@@ -207,7 +207,7 @@ export class GeospatialComponent implements OnInit, AfterViewInit, OnDestroy {
 
         features.forEach(feature => {
           try {
-            const geoJsonLayer = L.geoJSON(feature.geometry as L.GeoJSON);
+            const geoJsonLayer = L.geoJSON(feature.geometry as any);
             geoJsonLayer.addTo(layerGroup);
           } catch {
             // Skip invalid geometry

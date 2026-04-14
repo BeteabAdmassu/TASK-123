@@ -18,7 +18,7 @@ interface ElectronUpdaterApi {
 
 function getElectronUpdater(): ElectronUpdaterApi | null {
   try {
-    const api = (window as Record<string, unknown>)['electronAPI'] as
+    const api = (window as unknown as Record<string, unknown>)['electronAPI'] as
       { updater?: ElectronUpdaterApi } | undefined;
     return api?.updater ?? null;
   } catch {

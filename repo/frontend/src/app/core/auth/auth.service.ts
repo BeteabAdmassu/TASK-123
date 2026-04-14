@@ -91,7 +91,7 @@ export class AuthService {
   /** Send JWT to Electron main process (no-op in browser-only mode). */
   private syncTokenToElectron(token: string | null): void {
     try {
-      const electronAPI = (window as Record<string, unknown>)['electronAPI'] as
+      const electronAPI = (window as unknown as Record<string, unknown>)['electronAPI'] as
         { auth?: { setToken: (t: string | null) => void } } | undefined;
       if (electronAPI?.auth?.setToken) {
         electronAPI.auth.setToken(token);

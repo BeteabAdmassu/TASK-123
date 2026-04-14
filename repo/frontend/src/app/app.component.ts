@@ -101,7 +101,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   /** Subscribe to Electron preload IPC channels when running inside Electron. */
   private initElectronBridge(): void {
-    const electronAPI = (window as Record<string, unknown>)['electronAPI'] as Record<string, unknown> | undefined;
+    const electronAPI = (window as unknown as Record<string, unknown>)['electronAPI'] as Record<string, unknown> | undefined;
     if (!electronAPI) return; // Not running in Electron — browser-only safe fallback
 
     // Shortcuts from main process

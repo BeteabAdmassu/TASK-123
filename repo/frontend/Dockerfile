@@ -2,18 +2,21 @@
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 
-COPY angular.json tsconfig.json tsconfig.app.json ./
-COPY src/ ./src/
+COPY frontend/angular.json frontend/tsconfig.json frontend/tsconfig.app.json ./
+COPY frontend/src/ ./src/
+
+# Shared contracts referenced by path aliases (@contracts, @contract-utils)
+COPY shared/ ../shared/
 
 RUN npx ng build --configuration=production
 
 # ── Runtime ──────────────────────────────────────────────────────────
 FROM nginx:alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Angular 17 application builder outputs to dist/<project>/browser/
 COPY --from=builder /app/dist/talentops-frontend/browser/ /usr/share/nginx/html/

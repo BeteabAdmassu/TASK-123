@@ -5,7 +5,9 @@
       <mat-label>{{ 'VIOLATIONS.FILTER_STATUS' | translate }}</mat-label>
       <mat-select [(value)]="statusFilter" (selectionChange)="onStatusFilterChange()">
         <mat-option value="">{{ 'VIOLATIONS.ALL' | translate }}</mat-option>
-        <mat-option *ngFor="let s of statusOptions" [value]="s" *ngIf="s">{{ s | titlecase }}</mat-option>
+        <ng-container *ngFor="let s of statusOptions">
+          <mat-option *ngIf="s" [value]="s">{{ s | titlecase }}</mat-option>
+        </ng-container>
       </mat-select>
     </mat-form-field>
   </div>
