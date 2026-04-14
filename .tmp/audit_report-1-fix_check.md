@@ -15,44 +15,44 @@
 - Previous status: Open
 - Current status: **Fixed**
 - Evidence:
-  - Authorization now enforced at handler start: `repo/backend/src/routes/candidates.ts:310`
-  - Denied response returns 403 with consistent message: `repo/backend/src/routes/candidates.ts:313`
+  - Authorization now enforced at handler start: `repo/backend/src/routes/candidates.ts:332`
+  - Denied response returns 403 with consistent message: `repo/backend/src/routes/candidates.ts:334`
 
 ### 2) High - Missing object-level auth on candidate tag/material mutations
 - Previous status: Open
 - Current status: **Fixed**
 - Evidence:
-  - `POST /api/candidates/:id/tags` auth-first guard: `repo/backend/src/routes/candidates.ts:456`
-  - `DELETE /api/candidates/:id/tags/:tagId` auth-first guard: `repo/backend/src/routes/candidates.ts:522`
-  - `POST /api/candidates/:id/request-materials` auth-first guard: `repo/backend/src/routes/candidates.ts:566`
-  - Consistent denial body on each route: `repo/backend/src/routes/candidates.ts:459`, `repo/backend/src/routes/candidates.ts:525`, `repo/backend/src/routes/candidates.ts:569`
+  - `POST /api/candidates/:id/tags` auth-first guard: `repo/backend/src/routes/candidates.ts:566`
+  - `DELETE /api/candidates/:id/tags/:tagId` auth-first guard: `repo/backend/src/routes/candidates.ts:632`
+  - `POST /api/candidates/:id/request-materials` auth-first guard: `repo/backend/src/routes/candidates.ts:676`
+  - Consistent denial body on each route: `repo/backend/src/routes/candidates.ts:568`, `repo/backend/src/routes/candidates.ts:634`, `repo/backend/src/routes/candidates.ts:678`
 
 ### 3) Hardening - Candidate ID enumeration reduction for mutation routes
 - Previous status: Not fully addressed
 - Current status: **Fixed**
 - Evidence:
   - Auth check moved before existence/mutation work in targeted mutation routes (`PUT`, tag add/remove, request-materials).
-  - Request-materials side-effects occur only after access pass: side-effects begin at `repo/backend/src/routes/candidates.ts:596`.
+  - Request-materials side-effects occur only after access pass: side-effects begin at `repo/backend/src/routes/candidates.ts:681`.
 
 ### 4) Consistency - Candidate forbidden-message normalization
 - Previous status: Inconsistent wording across candidate routes
 - Current status: **Fixed**
 - Evidence:
   - Unified message now used across candidate access denials in this file:
-    - `repo/backend/src/routes/candidates.ts:264`
-    - `repo/backend/src/routes/candidates.ts:276`
-    - `repo/backend/src/routes/candidates.ts:313`
-    - `repo/backend/src/routes/candidates.ts:459`
-    - `repo/backend/src/routes/candidates.ts:525`
-    - `repo/backend/src/routes/candidates.ts:569`
+    - `repo/backend/src/routes/candidates.ts:285`
+    - `repo/backend/src/routes/candidates.ts:297`
+    - `repo/backend/src/routes/candidates.ts:334`
+    - `repo/backend/src/routes/candidates.ts:568`
+    - `repo/backend/src/routes/candidates.ts:634`
+    - `repo/backend/src/routes/candidates.ts:678`
 
 ## Test Coverage Check (Static)
-- New route-level test suite present: `repo/backend/src/routes/candidates.test.ts:1`
+- New route-level test suite present: `repo/tests/backend/routes/candidates.test.ts:1`
 - Test assertions include:
   - 403 denial for unauthorized recruiter across all four mutation endpoints
   - Anti-enumeration consistency for nonexistent IDs (still 403)
   - No side effects on denied `request-materials` (`createNotification`/`createAuditEntry` not called)
-  - Normalized denial message constant: `repo/backend/src/routes/candidates.test.ts:44`
+  - Normalized denial message constant: `repo/tests/backend/routes/candidates.test.ts:44`
 
 ## Residual Risk / Out of Scope
 - This fix-check did not re-audit all previously reported Medium items (docs mismatch, localization usage breadth, desktop UX prompt-fit details).

@@ -18,7 +18,7 @@
   - Admin System Update controls are present in UI: `repo/frontend/src/app/features/admin/admin.component.html:333`, `repo/frontend/src/app/features/admin/admin.component.html:343`, `repo/frontend/src/app/features/admin/admin.component.html:350`, `repo/frontend/src/app/features/admin/admin.component.html:357`.
   - Desktop fallback message exists: `repo/frontend/src/app/features/admin/admin.component.html:336`.
   - Frontend updater methods are wired to Electron bridge: `repo/frontend/src/app/features/admin/admin.component.ts:518`, `repo/frontend/src/app/features/admin/admin.component.ts:541`, `repo/frontend/src/app/features/admin/admin.component.ts:557`, `repo/frontend/src/app/features/admin/admin.component.ts:577`.
-  - Real Angular behavior tests now cover updater flow: `repo/frontend/src/app/features/admin/admin.component.spec.ts:52`, `repo/frontend/src/app/features/admin/admin.component.spec.ts:108`, `repo/frontend/src/app/features/admin/admin.component.spec.ts:155`, `repo/frontend/src/app/features/admin/admin.component.spec.ts:181`.
+  - Real Angular behavior tests now cover updater flow: `repo/tests/frontend/admin.component.spec.ts:52`, `repo/tests/frontend/admin.component.spec.ts:108`, `repo/tests/frontend/admin.component.spec.ts:155`, `repo/tests/frontend/admin.component.spec.ts:181`.
 
 ### 2) High - Localization requirement partially implemented
 - Previous status: Open
@@ -49,11 +49,11 @@
 - Current status: **Partially Improved, Still Open**
 - Improvements:
   - Frontend updater pseudo-tests in backend were removed: `repo/backend/src/services/admin-component-updater.test.ts` (deleted), `repo/backend/src/services/admin-updater.test.ts` (deleted).
-  - Replaced with Angular TestBed spec: `repo/frontend/src/app/features/admin/admin.component.spec.ts:1`.
+  - Replaced with Angular TestBed spec: `repo/tests/frontend/admin.component.spec.ts:1`.
 - Remaining gaps:
   - Source-string inspection tests still exist:
-    - `repo/backend/src/services/candidate-action-routing.test.ts:10`
-    - `repo/backend/src/services/electron-bridge.test.ts:11`
+    - `repo/tests/backend/services/candidate-action-routing.test.ts:10`
+    - `repo/tests/backend/services/electron-bridge.test.ts:11`
 
 ## Final Conclusion
 - The two **High** findings from `.tmp/audit_report-2.md` are now **resolved in static review**.
