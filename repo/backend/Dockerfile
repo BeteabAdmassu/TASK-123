@@ -28,6 +28,12 @@ COPY --from=builder /build/backend/dist/ ./dist/
 # SQL migrations at the path matching rootDir-nested output
 COPY backend/src/migrations/*.sql ./dist/backend/src/migrations/
 
+# TypeScript source + shared contracts + tests (needed by ts-jest for unit tests)
+COPY shared/ ./shared/
+COPY backend/src/ ./backend/src/
+COPY backend/tsconfig.json ./backend/tsconfig.json
+COPY tests/backend/ ./tests/backend/
+
 RUN mkdir -p uploads exports/notifications
 EXPOSE 3000
 

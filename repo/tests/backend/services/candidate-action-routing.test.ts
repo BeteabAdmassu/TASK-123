@@ -2,18 +2,19 @@
  * Candidate detail action-routing tests.
  * Verifies that query-param-based action dispatch from Electron context menu
  * is wired into the candidate detail component with correct mapping and cleanup.
+ *
+ * Skipped when frontend source files are not present (e.g. Docker).
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 
-const source = fs.readFileSync(
-  path.resolve(__dirname, '..', '..', '..', 'frontend', 'src', 'app',
-    'features', 'candidate-detail', 'candidate-detail.component.ts'),
-  'utf8'
-);
+const sourcePath = path.resolve(__dirname, '..', '..', '..', 'frontend', 'src', 'app',
+  'features', 'candidate-detail', 'candidate-detail.component.ts');
+const hasFile = fs.existsSync(sourcePath);
+const source = hasFile ? fs.readFileSync(sourcePath, 'utf8') : '';
 
-describe('Candidate Detail Action Routing', () => {
+(hasFile ? describe : describe.skip)('Candidate Detail Action Routing', () => {
 
   describe('Query param subscription', () => {
     it('should subscribe to route.queryParams', () => {

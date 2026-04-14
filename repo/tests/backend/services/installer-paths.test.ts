@@ -2,23 +2,25 @@
  * Installer path consistency tests.
  * Verifies that electron-builder.yml packaging layout matches
  * post-install.ps1 script expectations for migration/seed invocation.
+ *
+ * Skipped when electron/installer source files are not present (e.g. Docker).
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
+const builderYmlPath = path.join(repoRoot, 'electron', 'electron-builder.yml');
+const hasFiles = fs.existsSync(builderYmlPath);
 
-describe('Installer Path Consistency', () => {
-  const builderYml = fs.readFileSync(
-    path.join(repoRoot, 'electron', 'electron-builder.yml'), 'utf8'
-  );
-  const postInstall = fs.readFileSync(
-    path.join(repoRoot, 'installer', 'scripts', 'post-install.ps1'), 'utf8'
-  );
-  const nsisHooks = fs.readFileSync(
-    path.join(repoRoot, 'installer', 'nsis-hooks.nsh'), 'utf8'
-  );
+(hasFiles ? describe : describe.skip)('Installer Path Consistency', () => {
+  const builderYml = hasFiles ? fs.readFileSync(builderYmlPath, 'utf8') : '';
+  const postInstall = hasFiles
+    ? fs.readFileSync(path.join(repoRoot, 'installer', 'scripts', 'post-install.ps1'), 'utf8')
+    : '';
+  const nsisHooks = hasFiles
+    ? fs.readFileSync(path.join(repoRoot, 'installer', 'nsis-hooks.nsh'), 'utf8')
+    : '';
 
   describe('Backend artifact packaging', () => {
     it('should map backend/dist to resources/backend via extraResources', () => {

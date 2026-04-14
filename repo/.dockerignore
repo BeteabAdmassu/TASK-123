@@ -14,8 +14,6 @@ backend/dist
 .vscode
 .idea
 .DS_Store
-**/*.test.ts
-**/*.spec.ts
 electron/
 installer/
 docs/

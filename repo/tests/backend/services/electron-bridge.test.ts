@@ -2,20 +2,21 @@
  * Electron bridge wiring tests.
  * Verifies that the Angular app component's initElectronBridge()
  * connects preload channels to concrete behavior, not placeholders.
+ *
+ * Skipped when electron/frontend source files are not present (e.g. Docker).
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
 
 const repoRoot = path.resolve(__dirname, '..', '..', '..');
-const appComponentSource = fs.readFileSync(
-  path.join(repoRoot, 'frontend', 'src', 'app', 'app.component.ts'), 'utf8'
-);
-const preloadSource = fs.readFileSync(
-  path.join(repoRoot, 'electron', 'preload.ts'), 'utf8'
-);
+const appComponentPath = path.join(repoRoot, 'frontend', 'src', 'app', 'app.component.ts');
+const preloadPath = path.join(repoRoot, 'electron', 'preload.ts');
+const hasFiles = fs.existsSync(appComponentPath) && fs.existsSync(preloadPath);
+const appComponentSource = hasFiles ? fs.readFileSync(appComponentPath, 'utf8') : '';
+const preloadSource = hasFiles ? fs.readFileSync(preloadPath, 'utf8') : '';
 
-describe('Electron Bridge Wiring', () => {
+(hasFiles ? describe : describe.skip)('Electron Bridge Wiring', () => {
 
   describe('Preload channel alignment', () => {
     it('should expose onSearch in preload', () => {
