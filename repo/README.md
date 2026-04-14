@@ -39,15 +39,33 @@ The admin account requires a password change on first login.
 
 ### Running Tests
 
+**Integration tests** (requires running Docker services):
 ```bash
 ./run_tests.sh
 ```
 
-The test script:
+The integration test script:
 1. Waits for all services to be healthy
-2. Tests 60+ HTTP API endpoints
-3. Covers: health check, authentication, CRUD operations, validation, authorization, edge cases
+2. Tests 96 HTTP API endpoints
+3. Covers: health check, authentication, CRUD operations, validation, authorization, status transitions, edge cases
 4. Exits with code 0 on success, non-zero on failure
+
+**Unit tests** (backend):
+```bash
+cd backend
+npm install
+npm test
+```
+
+Runs 13 test suites (117 tests) covering:
+- Route-level authorization (candidates, postings, comments)
+- Candidate status transition with required-field validation
+- Approval engine logic (joint-sign, any-sign, write-back whitelisting)
+- Encryption, violation scanning, project access control
+- Attachment metadata extraction and quality checks
+- Electron bridge wiring, installer path consistency
+
+All test files are located in `tests/` at the repo root.
 
 ### Local Development
 
@@ -68,7 +86,6 @@ npm start
 ### Desktop Build (Signed MSI Installer)
 
 The production deliverable is a signed Windows MSI installer built via Electron + electron-builder.
-See [docs/desktop-build.md](docs/desktop-build.md) for the full pipeline.
 
 ```bash
 # 1. Build backend
@@ -106,6 +123,26 @@ update. One-click rollback swaps `current/` and `previous/`.
 
 ```
 repo/
+├── tests/                             # All test files
+│   ├── tsconfig.test.json            # TypeScript config for backend tests
+│   ├── backend/
+│   │   ├── routes/                   # Route-level behavior tests
+│   │   │   ├── candidates.test.ts    # Candidate CRUD + object-level auth
+│   │   │   ├── candidate-status.test.ts # Status transition + required fields
+│   │   │   ├── comments.test.ts      # Entity-level comment authorization
+│   │   │   └── postings.test.ts      # Posting create/delete auth
+│   │   └── services/                 # Service-level unit tests
+│   │       ├── approval-engine.test.ts
+│   │       ├── attachment.service.test.ts
+│   │       ├── candidate-action-routing.test.ts
+│   │       ├── electron-bridge.test.ts
+│   │       ├── encryption.service.test.ts
+│   │       ├── installer-paths.test.ts
+│   │       ├── project-access.test.ts
+│   │       ├── security.test.ts
+│   │       └── violation-scanner.test.ts
+│   └── frontend/
+│       └── admin.component.spec.ts   # Admin updater Angular TestBed spec
 ├── electron/                          # Electron desktop shell
 │   ├── main.ts                        # App entry, multi-window management
 │   ├── tray.ts                        # System tray badge (polls pending count)
@@ -121,12 +158,13 @@ repo/
 │       ├── post-install.ps1           # PostgreSQL setup, migrations, shortcuts
 │       └── pre-uninstall.ps1          # Cleanup on uninstall
 ├── shared/                            # Shared FE/BE API contract types
-│   └── api-contracts.ts               # Endpoint paths and response shapes
+│   ├── api-contracts.ts               # Endpoint paths and response shapes
+│   └── contract-utils.ts              # Contract utility functions
 ├── backend/                           # Fastify local server (Node.js/TypeScript)
 │   ├── Dockerfile                     # Alpine-based multi-stage build
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── jest.config.js
+│   ├── jest.config.js                 # Points to tests/backend/
 │   └── src/
 │       ├── server.ts                  # Fastify app bootstrap, route registration
 │       ├── config/                    # App configuration (ports, DB, JWT, etc.)
@@ -144,6 +182,8 @@ repo/
 │       │   ├── approval-engine.ts     # Multi-level approval logic (joint/any-sign)
 │       │   ├── notification.service.ts # Template rendering, export generation
 │       │   ├── attachment.service.ts  # Upload validation, metadata extraction
+│       │   ├── candidate-access.ts    # Object-level candidate authorization
+│       │   ├── project-access.ts      # Object-level project/posting authorization
 │       │   └── audit.service.ts       # Immutable audit trail logging
 │       └── routes/
 │           ├── auth.ts                # Login, logout, verify-password
@@ -175,13 +215,15 @@ repo/
 │   ├── nginx.conf                     # SPA routing, API proxy
 │   ├── package.json
 │   ├── angular.json
+│   ├── tsconfig.json
+│   ├── tsconfig.app.json
 │   └── src/
 │       ├── app/
 │       │   ├── app.module.ts          # Root module
 │       │   ├── app-routing.module.ts  # All route definitions with guards
 │       │   ├── app.component.ts       # Root layout with toolbar, sidenav
 │       │   ├── core/                  # Auth service, guards, interceptors
-│       │   ├── shared/                # Shared modules, pipes, components
+│       │   ├── shared/                # Shared modules, pipes (localDate, localCurrency)
 │       │   └── features/
 │       │       ├── dashboard/         # Role-appropriate dashboard
 │       │       ├── recruiting/        # Projects, postings, candidates
@@ -193,10 +235,11 @@ repo/
 │       │       ├── notifications/     # In-app notification inbox
 │       │       ├── geospatial/        # Leaflet map viewer
 │       │       ├── media-player/      # HLS/DASH video player
-│       │       └── admin/             # User, rules, templates management
-│       └── assets/i18n/               # en.json, es.json translations
+│       │       └── admin/             # User, rules, templates, system update
+│       └── assets/i18n/               # en.json, es.json (345 translation keys)
 ├── docker-compose.yml                 # PostgreSQL + Backend + Frontend
-├── run_tests.sh                       # Integration test suite
+├── .dockerignore                      # Build context exclusions
+├── run_tests.sh                       # Integration test suite (96 tests)
 └── README.md
 ```
 
@@ -206,30 +249,33 @@ repo/
 - **Backend**: Fastify (Node.js/TypeScript) — local application server
 - **Frontend**: Angular 17 with Angular Material
 - **Database**: PostgreSQL 16 with PostGIS extension
-- **Auth**: JWT-based local authentication
+- **Auth**: JWT-based local authentication with object-level authorization
 - **Encryption**: AES-256-GCM field-level encryption for sensitive data
-- **i18n**: English + Spanish via @ngx-translate
+- **i18n**: English + Spanish (345 keys) via @ngx-translate with localDate/localCurrency pipes
 - **Maps**: Leaflet with PostGIS spatial queries
 - **Video**: hls.js and dashjs for local HLS/DASH playback
+- **Testing**: Jest (backend unit), Bash/curl (integration), Jasmine/Karma (frontend)
 
 ### Key Features
-- **Multi-role access control**: Admin, Recruiter, Reviewer, Approver
+- **Multi-role access control**: Admin, Recruiter, Reviewer, Approver with object-level authorization
 - **Keyboard-first UX**: Ctrl+K search, Ctrl+Enter save, Alt+N navigation
 - **Encrypted sensitive fields**: SSN, DOB, compensation encrypted at rest (AES-256-GCM)
 - **Violation detection**: Rule-based scanning for prohibited phrases, missing fields, duplicate patterns
 - **Multi-level approvals**: Joint-sign (all must approve) or any-sign (first completes)
+- **Candidate status gating**: Required-field validation blocks status advancement
 - **Service catalog**: Configurable specs, pricing rules, capacity controls
 - **Geospatial analytics**: CSV/GeoJSON import, spatial analysis, Leaflet visualization
 - **VOD playback**: HLS/DASH with quality switching, subtitles, resume playback
 - **Crash recovery**: 30-second checkpoints restore last state after restart
-- **Bilingual**: Full English + Spanish UI translation
+- **Bilingual**: Full English + Spanish UI translation (345 keys with exact parity)
+- **Offline update & rollback**: Admin UI wired to Electron updater with browser-safe fallback
 
 ### Database Schema
 20+ tables covering:
 - Users & authentication
 - Recruiting projects, job postings, candidates
 - Resume versions (max 50 retained, FIFO pruning)
-- Attachments with quality checks
+- Attachments with quality checks (PDF/DOCX page count extraction)
 - Violation rules and instances
 - Service catalog: categories, attributes, specifications, pricing rules, capacity plans
 - Credit changes with approval workflow
@@ -252,9 +298,9 @@ All environment variables have defaults in `docker-compose.yml`. No `.env` file 
 | DB_USER | talentops | Database user |
 | DB_PASSWORD | talentops_secret | Database password |
 | DB_NAME | talentops | Database name |
-| JWT_SECRET | talentops-jwt-secret-... | JWT signing secret |
+| JWT_SECRET | talentops-jwt-secret-... | JWT signing secret (warning logged if default used in production) |
 | JWT_EXPIRES_IN | 24h | JWT expiration |
-| ENCRYPTION_KEY | a1b2c3d4e5f6... | AES-256 master key |
+| ENCRYPTION_KEY | a1b2c3d4e5f6... | AES-256 master key (warning logged if default used in production) |
 | LOG_LEVEL | info | Logging level |
 
 ## API Endpoints
@@ -265,17 +311,17 @@ The backend serves 80+ REST API endpoints across these domains:
 - **Users**: `/api/users` (Admin CRUD)
 - **Projects**: `/api/projects` (CRUD with soft delete)
 - **Postings**: `/api/projects/:id/postings`, `/api/postings/:id`
-- **Candidates**: `/api/postings/:id/candidates`, `/api/candidates/:id` (encrypted fields)
+- **Candidates**: `/api/postings/:id/candidates`, `/api/candidates/:id` (encrypted fields), `/api/candidates/:id/status` (status transitions)
 - **Resumes**: `/api/candidates/:id/resumes` (version management)
 - **Attachments**: `/api/candidates/:id/attachments` (upload with quality checks)
-- **Violations**: `/api/violations` (review queue), `/api/violations/rules` (rule management)
+- **Violations**: `/api/violations` (review queue), `/api/violations/rules` (rule management), `/api/candidates/:id/scan`
 - **Services**: `/api/services/categories`, `/api/services/specifications`, `/api/services/pricing`
 - **Capacity**: `/api/services/specifications/:id/capacity`
 - **Credit Changes**: `/api/credit-changes`
 - **Approvals**: `/api/approval-templates`, `/api/approvals`
 - **Notifications**: `/api/notifications`, `/api/notification-templates`
 - **Tags**: `/api/tags`
-- **Comments**: `/api/comments`
+- **Comments**: `/api/comments` (entity-level authorization)
 - **Geospatial**: `/api/geo/datasets`, analysis endpoints
 - **Media**: `/api/media`, playback state
-- **System**: `/api/health`, `/api/search`, `/api/checkpoint`, `/api/audit`
+- **System**: `/api/health`, `/api/search`, `/api/checkpoint`, `/api/audit`, `/api/system/update-info`
