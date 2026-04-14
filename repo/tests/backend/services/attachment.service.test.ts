@@ -5,7 +5,16 @@
  * quality check outcomes against configured field rules.
  */
 
-import { validateAttachment, extractMetadata } from '../../../backend/src/../../backend/src/services/attachment.service';
+// jest.mock is hoisted before imports, replacing non-configurable fs properties
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+  existsSync: jest.fn(),
+  readFileSync: jest.fn(),
+  mkdirSync: jest.fn(),
+}));
+
+import * as fs from 'fs';
+import { validateAttachment, extractMetadata, runQualityChecks, ensureUploadDir } from '../../../backend/src/../../backend/src/services/attachment.service';
 
 describe('validateAttachment', () => {
   it('should pass for a valid PDF under 10MB', () => {
@@ -88,5 +97,165 @@ describe('extractMetadata', () => {
   it('should return null pageCount for PDF without buffer', () => {
     const result = extractMetadata('resume.pdf', 1000);
     expect(result.pageCount).toBeNull();
+  });
+});
+
+describe('runQualityChecks', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it('should return passed with no errors when candidate is not found', async () => {
+    const mockQuery = jest.fn();
+    // Candidate query returns empty rows
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    // UPDATE attachments (no file_rules branch entered)
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+
+    const mockDb = { query: mockQuery };
+    const result = await runQualityChecks(mockDb, 'att-1', 'cand-1', 'pdf');
+
+    expect(result.status).toBe('passed');
+    expect(result.errors).toHaveLength(0);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('should return passed with no errors when candidate has no field_rules', async () => {
+    const mockQuery = jest.fn();
+    // Candidate query returns row without field_rules
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'cand-1', first_name: 'John', field_rules: null }],
+    });
+    // UPDATE attachments
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+
+    const mockDb = { query: mockQuery };
+    const result = await runQualityChecks(mockDb, 'att-1', 'cand-1', 'pdf');
+
+    expect(result.status).toBe('passed');
+    expect(result.errors).toHaveLength(0);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('should return passed when all required sections are present in file', async () => {
+    const mockQuery = jest.fn();
+    // Candidate with requiredSections field_rules
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'cand-1',
+        field_rules: { requiredSections: ['experience', 'education'] },
+      }],
+    });
+    // Attachment file_path query
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ file_path: '/uploads/resume.pdf' }],
+    });
+    // UPDATE attachments
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    (fs.readFileSync as jest.Mock).mockReturnValue(
+      Buffer.from('this resume contains experience and education sections', 'binary')
+    );
+
+    const mockDb = { query: mockQuery };
+    const result = await runQualityChecks(mockDb, 'att-1', 'cand-1', 'pdf');
+
+    expect(result.status).toBe('passed');
+    expect(result.errors).toHaveLength(0);
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
+  it('should return failed with error when a required section is missing from file', async () => {
+    const mockQuery = jest.fn();
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'cand-1',
+        field_rules: { requiredSections: ['experience', 'education'] },
+      }],
+    });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ file_path: '/uploads/resume.pdf' }],
+    });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    // File content only has 'experience', missing 'education'
+    (fs.readFileSync as jest.Mock).mockReturnValue(
+      Buffer.from('this resume only mentions experience here', 'binary')
+    );
+
+    const mockDb = { query: mockQuery };
+    const result = await runQualityChecks(mockDb, 'att-1', 'cand-1', 'pdf');
+
+    expect(result.status).toBe('failed');
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]).toContain('education');
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
+  it('should return failed when attachment file does not exist on disk', async () => {
+    const mockQuery = jest.fn();
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'cand-1',
+        field_rules: { requiredSections: ['experience'] },
+      }],
+    });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ file_path: '/uploads/missing.pdf' }],
+    });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+
+    (fs.existsSync as jest.Mock).mockReturnValue(false);
+
+    const mockDb = { query: mockQuery };
+    const result = await runQualityChecks(mockDb, 'att-1', 'cand-1', 'pdf');
+
+    expect(result.status).toBe('failed');
+    expect(result.errors.some((e: string) => e.includes('Unable to read attachment file'))).toBe(true);
+    expect(mockQuery).toHaveBeenCalledTimes(3);
+  });
+
+  it('should return failed with unsupported file type error for non-pdf/docx', async () => {
+    const mockQuery = jest.fn();
+    // Candidate with no field_rules so only candidate + UPDATE queries are made
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'cand-1', field_rules: null }],
+    });
+    mockQuery.mockResolvedValueOnce({ rowCount: 1 });
+
+    const mockDb = { query: mockQuery };
+    const result = await runQualityChecks(mockDb, 'att-1', 'cand-1', 'png');
+
+    expect(result.status).toBe('failed');
+    expect(result.errors.some((e: string) => e.includes('Unsupported file type'))).toBe(true);
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('ensureUploadDir', () => {
+  afterEach(() => jest.resetAllMocks());
+
+  it('should not call mkdirSync and return path when directory already exists', () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(true);
+    const mkdirMock = fs.mkdirSync as jest.Mock;
+    mkdirMock.mockImplementation(() => undefined);
+
+    const result = ensureUploadDir();
+
+    expect(mkdirMock).not.toHaveBeenCalled();
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
+  });
+
+  it('should call mkdirSync with recursive option and return path when directory does not exist', () => {
+    (fs.existsSync as jest.Mock).mockReturnValue(false);
+    const mkdirMock = fs.mkdirSync as jest.Mock;
+    mkdirMock.mockImplementation(() => undefined);
+
+    const result = ensureUploadDir();
+
+    expect(mkdirMock).toHaveBeenCalledWith(expect.any(String), { recursive: true });
+    expect(typeof result).toBe('string');
+    expect(result.length).toBeGreaterThan(0);
   });
 });

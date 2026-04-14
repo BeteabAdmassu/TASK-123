@@ -203,4 +203,115 @@ describe('ViolationScanner', () => {
       expect.anything()
     );
   });
+
+  it('should detect missing required resume section via custom rule', async () => {
+    // resumeContent has keys ['experience', 'skills'], rule requires ['experience', 'education']
+    // → violation expected for missing 'education'
+    mockQuery
+      // Rules query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'rule-custom-1',
+          rule_type: 'custom',
+          rule_config: { requiredSections: ['experience', 'education'] },
+          severity: 'warning',
+          is_active: true,
+        }],
+      })
+      // Candidate query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'cand-custom-1',
+          first_name: 'Alice',
+          last_name: 'Brown',
+          email: 'alice@test.com',
+          eeoc_disposition: 'selected',
+        }],
+      })
+      // Resume query — content only has 'experience' and 'skills', no 'education'
+      .mockResolvedValueOnce({
+        rows: [{
+          content: { experience: 'Senior Engineer at Acme', skills: 'TypeScript, Node.js' },
+        }],
+      })
+      // Existing violations check
+      .mockResolvedValueOnce({ rows: [] })
+      // Insert violation
+      .mockResolvedValueOnce({ rows: [] });
+
+    const violations = await scanCandidate(mockPool, 'cand-custom-1');
+
+    expect(violations.length).toBe(1);
+    expect(violations[0].details.type).toBe('custom');
+    expect((violations[0].details as any).section).toBe('education');
+    expect((violations[0].details as any).message).toContain('education');
+  });
+
+  it('should not trigger custom rule when all required sections are present', async () => {
+    mockQuery
+      // Rules query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'rule-custom-2',
+          rule_type: 'custom',
+          rule_config: { requiredSections: ['experience', 'education'] },
+          severity: 'warning',
+          is_active: true,
+        }],
+      })
+      // Candidate query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'cand-custom-2',
+          first_name: 'Bob',
+          last_name: 'Smith',
+          email: 'bob@test.com',
+          eeoc_disposition: 'selected',
+        }],
+      })
+      // Resume query — content has all required sections
+      .mockResolvedValueOnce({
+        rows: [{
+          content: {
+            experience: 'Lead Developer at Corp',
+            education: 'BSc Computer Science',
+          },
+        }],
+      });
+
+    const violations = await scanCandidate(mockPool, 'cand-custom-2');
+
+    expect(violations.length).toBe(0);
+  });
+
+  it('should not trigger custom rule when resume content is absent', async () => {
+    // resumeResult returns empty rows → resumeContent is undefined → custom rule skipped
+    mockQuery
+      // Rules query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'rule-custom-3',
+          rule_type: 'custom',
+          rule_config: { requiredSections: ['experience', 'education'] },
+          severity: 'error',
+          is_active: true,
+        }],
+      })
+      // Candidate query
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'cand-custom-3',
+          first_name: 'Carol',
+          last_name: 'Davis',
+          email: 'carol@test.com',
+          eeoc_disposition: null,
+        }],
+      })
+      // Resume query — no resume on file
+      .mockResolvedValueOnce({ rows: [] });
+
+    const violations = await scanCandidate(mockPool, 'cand-custom-3');
+
+    expect(violations.length).toBe(0);
+  });
 });

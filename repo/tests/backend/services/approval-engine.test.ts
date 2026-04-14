@@ -180,5 +180,93 @@ describe('ApprovalEngine', () => {
       expect(result.requestStatus).toBe('pending');
       expect(result.completed).toBe(false);
     });
+
+    it('should throw 400 when approval request is no longer pending', async () => {
+      // request_status is 'approved' (not 'pending') — request already decided
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          id: 'step-1',
+          approver_id: 'user-1',
+          status: 'pending',
+          approval_mode: 'joint',
+          request_status: 'approved',
+          entity_type: 'credit_change',
+          entity_id: 'cc-1',
+          requested_by: 'requester-1',
+        }],
+      });
+
+      await expect(
+        processApprovalDecision(mockPool, 'req-1', 'step-1', 'user-1', 'approved', null)
+      ).rejects.toEqual(
+        expect.objectContaining({ statusCode: 400, message: 'This approval request is no longer pending' })
+      );
+    });
+
+    it('should complete joint-sign request when last remaining step is approved', async () => {
+      mockQuery
+        // Step query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'step-1',
+            approver_id: 'user-1',
+            status: 'pending',
+            approval_mode: 'joint',
+            request_status: 'pending',
+            entity_type: 'credit_change',
+            entity_id: 'cc-1',
+            final_write_back: null,
+            requested_by: 'req-1',
+          }],
+        })
+        // UPDATE step status
+        .mockResolvedValueOnce({ rowCount: 1 })
+        // SELECT COUNT of remaining pending steps → 0 (this was the last one)
+        .mockResolvedValueOnce({ rows: [{ count: '0' }] })
+        // UPDATE request status to 'approved'
+        .mockResolvedValueOnce({ rowCount: 1 })
+        // UPDATE credit_changes entity
+        .mockResolvedValueOnce({ rowCount: 1 });
+
+      const result = await processApprovalDecision(
+        mockPool, 'req-1', 'step-1', 'user-1', 'approved', 'All good'
+      );
+
+      expect(result.requestStatus).toBe('approved');
+      expect(result.completed).toBe(true);
+    });
+
+    it('should apply write-back when approved with final_write_back set', async () => {
+      mockQuery
+        // Step query — entity_type is 'candidate', has final_write_back
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'step-1',
+            approver_id: 'user-1',
+            status: 'pending',
+            approval_mode: 'any',
+            request_status: 'pending',
+            entity_type: 'candidate',
+            entity_id: 'cand-1',
+            final_write_back: { status: 'hired' },
+            requested_by: 'req-1',
+          }],
+        })
+        // UPDATE step status
+        .mockResolvedValueOnce({ rowCount: 1 })
+        // UPDATE request status to 'approved'
+        .mockResolvedValueOnce({ rowCount: 1 })
+        // UPDATE candidates SET status = 'hired' (the write-back)
+        .mockResolvedValueOnce({ rowCount: 1 });
+
+      const result = await processApprovalDecision(
+        mockPool, 'req-1', 'step-1', 'user-1', 'approved', 'Approved for hire'
+      );
+
+      expect(result.requestStatus).toBe('approved');
+      expect(result.completed).toBe(true);
+      // step query + update step + update request + write-back UPDATE = at least 3 calls
+      expect(mockQuery.mock.calls.length).toBeGreaterThanOrEqual(3);
+    });
   });
 });

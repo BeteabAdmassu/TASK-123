@@ -1,8 +1,8 @@
 /**
  * Comments Routes – Entity-Level Authorization Tests
  *
- * Verifies that GET and POST /api/comments enforce entity-level access
- * checks and return 403 for users without access to the underlying entity.
+ * Verifies that GET, POST, and DELETE /api/comments enforce entity-level
+ * access checks and return correct status codes for all scenarios.
  */
 
 import Fastify, { FastifyInstance } from 'fastify';
@@ -120,6 +120,54 @@ describe('GET /api/comments', () => {
     expect(body.data).toHaveLength(1);
     expect(body.data[0].body).toBe('Test');
   });
+
+  it('returns 403 for unsupported entity type when user is not admin', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/comments?entityType=unknown_entity&entityId=entity-1',
+      headers: { authorization: `Bearer ${signToken(app, recruiterA)}` },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(mockCheckCandidateAccess).not.toHaveBeenCalled();
+    expect(mockCheckProjectAccess).not.toHaveBeenCalled();
+    expect(mockCheckPostingAccess).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('returns 200 for unsupported entity type when user IS admin (admin bypass)', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [
+        { id: 'comment-2', entity_type: 'unknown_entity', entity_id: 'entity-1', author_id: admin.id, body: 'Admin comment', created_at: new Date().toISOString(), author_username: 'admin' },
+      ],
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/comments?entityType=unknown_entity&entityId=entity-1',
+      headers: { authorization: `Bearer ${signToken(app, admin)}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(mockCheckCandidateAccess).not.toHaveBeenCalled();
+    expect(mockCheckProjectAccess).not.toHaveBeenCalled();
+    expect(mockCheckPostingAccess).not.toHaveBeenCalled();
+    expect(mockQuery).toHaveBeenCalled();
+  });
+
+  it('returns 500 on database error', async () => {
+    mockCheckCandidateAccess.mockResolvedValueOnce({ allowed: true });
+    mockQuery.mockRejectedValueOnce(new Error('DB connection failed'));
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/comments?entityType=candidate&entityId=cand-1',
+      headers: { authorization: `Bearer ${signToken(app, recruiterA)}` },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(JSON.parse(res.payload).error).toBe('Internal Server Error');
+  });
 });
 
 describe('POST /api/comments', () => {
@@ -177,5 +225,117 @@ describe('POST /api/comments', () => {
 
     expect(res.statusCode).toBe(201);
     expect(mockCheckPostingAccess).toHaveBeenCalled();
+  });
+
+  it('returns 500 on database error', async () => {
+    mockCheckCandidateAccess.mockResolvedValueOnce({ allowed: true });
+    mockQuery.mockRejectedValueOnce(new Error('DB insert failed'));
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/comments',
+      headers: { authorization: `Bearer ${signToken(app, recruiterA)}` },
+      payload: { entity_type: 'candidate', entity_id: 'cand-1', body: 'This will fail' },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(JSON.parse(res.payload).error).toBe('Internal Server Error');
+  });
+});
+
+describe('DELETE /api/comments/:id', () => {
+  it('returns 404 when comment is not found', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/comments/nonexistent-id',
+      headers: { authorization: `Bearer ${signToken(app, recruiterA)}` },
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.payload).error).toBe('Not Found');
+    expect(JSON.parse(res.payload).message).toBe('Comment not found');
+  });
+
+  it('returns 403 when a non-author non-admin tries to delete', async () => {
+    mockQuery.mockResolvedValueOnce({
+      rows: [{
+        id: 'comment-1',
+        author_id: recruiterA.id,
+        entity_type: 'candidate',
+        entity_id: 'cand-1',
+      }],
+    });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/comments/comment-1',
+      headers: { authorization: `Bearer ${signToken(app, recruiterB)}` },
+    });
+
+    expect(res.statusCode).toBe(403);
+    expect(JSON.parse(res.payload).error).toBe('Forbidden');
+    expect(JSON.parse(res.payload).message).toBe('You can only delete your own comments');
+  });
+
+  it('returns 200 when the author deletes their own comment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'comment-1',
+          author_id: recruiterA.id,
+          entity_type: 'candidate',
+          entity_id: 'cand-1',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/comments/comment-1',
+      headers: { authorization: `Bearer ${signToken(app, recruiterA)}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).message).toBe('Comment deleted successfully');
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns 200 when admin deletes another user\'s comment', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'comment-1',
+          author_id: recruiterA.id,
+          entity_type: 'candidate',
+          entity_id: 'cand-1',
+        }],
+      })
+      .mockResolvedValueOnce({ rows: [] });
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/comments/comment-1',
+      headers: { authorization: `Bearer ${signToken(app, admin)}` },
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.payload).message).toBe('Comment deleted successfully');
+    expect(mockQuery).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns 500 on database error during lookup', async () => {
+    mockQuery.mockRejectedValueOnce(new Error('DB query failed'));
+
+    const res = await app.inject({
+      method: 'DELETE',
+      url: '/api/comments/comment-1',
+      headers: { authorization: `Bearer ${signToken(app, recruiterA)}` },
+    });
+
+    expect(res.statusCode).toBe(500);
+    expect(JSON.parse(res.payload).error).toBe('Internal Server Error');
+    expect(JSON.parse(res.payload).message).toBe('Failed to delete comment');
   });
 });
