@@ -4,7 +4,7 @@
  * - Approval write-back field whitelisting via approval-engine behavior
  */
 
-import { encryptField, decryptField, deterministicHash } from './encryption.service';
+import { encryptField, decryptField, deterministicHash } from '../../../backend/src/../../backend/src/services/encryption.service';
 
 describe('Deterministic SSN Hash', () => {
   it('should produce the same hash for the same plaintext', () => {
@@ -44,14 +44,14 @@ describe('Approval Write-Back Field Whitelist (behavior)', () => {
   const mockQuery = jest.fn();
   const mockDb = { query: mockQuery } as any;
 
-  jest.mock('./audit.service', () => ({
+  jest.mock('../../../backend/src/services/audit.service', () => ({
     createAuditEntry: jest.fn().mockResolvedValue(undefined),
   }));
-  jest.mock('./notification.service', () => ({
+  jest.mock('../../../backend/src/services/notification.service', () => ({
     createNotification: jest.fn().mockResolvedValue('notif-id'),
   }));
 
-  const { processApprovalDecision } = require('./approval-engine');
+  const { processApprovalDecision } = require('../../../backend/src/services/approval-engine');
 
   beforeEach(() => {
     mockQuery.mockReset();

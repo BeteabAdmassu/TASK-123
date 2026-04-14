@@ -1,0 +1,17 @@
+{
+  "extends": "../backend/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "types": ["jest", "node"],
+    "baseUrl": "../backend",
+    "typeRoots": ["../backend/node_modules/@types"],
+    "paths": {
+      "*": ["node_modules/*", "../shared/*"]
+    }
+  },
+  "include": [
+    "../tests/backend/**/*.test.ts",
+    "../backend/src/**/*.ts",
+    "../shared/**/*.ts"
+  ]
+}

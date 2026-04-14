@@ -11,12 +11,12 @@ import fjwt from '@fastify/jwt';
 const mockCheckProjectAccess = jest.fn();
 const mockCheckPostingAccess = jest.fn();
 
-jest.mock('../services/project-access', () => ({
+jest.mock('../../../backend/src/services/project-access', () => ({
   checkProjectAccess: (...args: unknown[]) => mockCheckProjectAccess(...args),
   checkPostingAccess: (...args: unknown[]) => mockCheckPostingAccess(...args),
 }));
 
-import postingRoutes from './postings';
+import postingRoutes from '../../../backend/src/routes/postings';
 
 const JWT_SECRET = 'test-secret';
 const mockQuery = jest.fn();
@@ -44,7 +44,7 @@ async function buildTestApp(): Promise<FastifyInstance> {
   return app;
 }
 
-import { UserRole } from '../models';
+import { UserRole } from '../../../backend/src/models';
 
 function signToken(app: FastifyInstance, payload: { id: string; username: string; role: UserRole }) {
   return app.jwt.sign(payload);

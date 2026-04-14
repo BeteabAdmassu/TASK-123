@@ -5,7 +5,7 @@
  * quality check outcomes against configured field rules.
  */
 
-import { validateAttachment, extractMetadata } from './attachment.service';
+import { validateAttachment, extractMetadata } from '../../../backend/src/../../backend/src/services/attachment.service';
 
 describe('validateAttachment', () => {
   it('should pass for a valid PDF under 10MB', () => {

@@ -9,34 +9,34 @@ import Fastify, { FastifyInstance } from 'fastify';
 import fjwt from '@fastify/jwt';
 
 const mockCheckCandidateAccess = jest.fn();
-jest.mock('../services/candidate-access', () => ({
+jest.mock('../../../backend/src/services/candidate-access', () => ({
   checkCandidateAccess: (...args: unknown[]) => mockCheckCandidateAccess(...args),
 }));
 
-jest.mock('../services/audit.service', () => ({
+jest.mock('../../../backend/src/services/audit.service', () => ({
   createAuditEntry: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../services/notification.service', () => ({
+jest.mock('../../../backend/src/services/notification.service', () => ({
   createNotification: jest.fn().mockResolvedValue('notif-id'),
 }));
 
-jest.mock('../services/violation-scanner', () => ({
+jest.mock('../../../backend/src/services/violation-scanner', () => ({
   scanCandidate: jest.fn().mockResolvedValue([]),
 }));
 
-jest.mock('../services/encryption.service', () => ({
+jest.mock('../../../backend/src/services/encryption.service', () => ({
   encryptField: jest.fn((v: string) => `enc_${v}`),
   decryptField: jest.fn((v: string) => v.replace('enc_', '')),
   maskField: jest.fn(() => '****'),
   deterministicHash: jest.fn((v: string) => `hash_${v}`),
 }));
 
-jest.mock('../services/project-access', () => ({
+jest.mock('../../../backend/src/services/project-access', () => ({
   checkPostingAccess: jest.fn().mockResolvedValue({ allowed: true }),
 }));
 
-import candidateRoutes from './candidates';
+import candidateRoutes from '../../../backend/src/routes/candidates';
 
 const JWT_SECRET = 'test-secret';
 const mockQuery = jest.fn();
@@ -64,7 +64,7 @@ async function buildTestApp(): Promise<FastifyInstance> {
   return app;
 }
 
-import { UserRole } from '../models';
+import { UserRole } from '../../../backend/src/models';
 
 function signToken(app: FastifyInstance, payload: { id: string; username: string; role: UserRole }) {
   return app.jwt.sign(payload);

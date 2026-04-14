@@ -12,16 +12,16 @@ const mockCheckCandidateAccess = jest.fn();
 const mockCheckProjectAccess = jest.fn();
 const mockCheckPostingAccess = jest.fn();
 
-jest.mock('../services/candidate-access', () => ({
+jest.mock('../../../backend/src/services/candidate-access', () => ({
   checkCandidateAccess: (...args: unknown[]) => mockCheckCandidateAccess(...args),
 }));
 
-jest.mock('../services/project-access', () => ({
+jest.mock('../../../backend/src/services/project-access', () => ({
   checkProjectAccess: (...args: unknown[]) => mockCheckProjectAccess(...args),
   checkPostingAccess: (...args: unknown[]) => mockCheckPostingAccess(...args),
 }));
 
-import commentRoutes from './comments';
+import commentRoutes from '../../../backend/src/routes/comments';
 
 const JWT_SECRET = 'test-secret';
 const mockQuery = jest.fn();
@@ -49,7 +49,7 @@ async function buildTestApp(): Promise<FastifyInstance> {
   return app;
 }
 
-import { UserRole } from '../models';
+import { UserRole } from '../../../backend/src/models';
 
 function signToken(app: FastifyInstance, payload: { id: string; username: string; role: UserRole }) {
   return app.jwt.sign(payload);

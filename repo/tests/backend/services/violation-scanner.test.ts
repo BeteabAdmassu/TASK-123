@@ -9,7 +9,7 @@
 const mockQuery = jest.fn();
 const mockPool = { query: mockQuery } as any;
 
-import { scanCandidate } from './violation-scanner';
+import { scanCandidate } from '../../../backend/src/../../backend/src/services/violation-scanner';
 
 describe('ViolationScanner', () => {
   beforeEach(() => {

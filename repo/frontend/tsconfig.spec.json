@@ -8,7 +8,7 @@
     "src/test.ts"
   ],
   "include": [
-    "src/**/*.spec.ts",
+    "../tests/frontend/**/*.spec.ts",
     "src/**/*.d.ts",
     "src/**/*.ts"
   ]

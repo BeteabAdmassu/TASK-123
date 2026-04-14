@@ -8,15 +8,15 @@ const mockQuery = jest.fn();
 const mockPool = { chromosomequery: mockQuery } as any;
 
 // We need to mock the dependent services
-jest.mock('./audit.service', () => ({
+jest.mock('../../../backend/src/services/audit.service', () => ({
   createAuditEntry: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('./notification.service', () => ({
+jest.mock('../../../backend/src/services/notification.service', () => ({
   createNotification: jest.fn().mockResolvedValue('notif-id'),
 }));
 
-import { processApprovalDecision } from './approval-engine';
+import { processApprovalDecision } from '../../../backend/src/../../backend/src/services/approval-engine';
 
 // Fix the pool mock - we need to override the query method
 beforeEach(() => {

@@ -5,7 +5,7 @@
  * with mock DB queries rather than inspecting source code strings.
  */
 
-import { checkProjectAccess, checkPostingAccess } from './project-access';
+import { checkProjectAccess, checkPostingAccess } from '../../../backend/src/../../backend/src/services/project-access';
 
 const mockQuery = jest.fn();
 const mockDb = { query: mockQuery } as any;

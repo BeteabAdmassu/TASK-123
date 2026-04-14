@@ -1,4 +1,4 @@
-import { encryptField, decryptField, maskField } from './encryption.service';
+import { encryptField, decryptField, maskField } from '../../../backend/src/../../backend/src/services/encryption.service';
 
 describe('EncryptionService', () => {
   describe('encryptField / decryptField', () => {
