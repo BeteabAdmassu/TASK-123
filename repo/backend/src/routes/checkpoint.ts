@@ -17,7 +17,7 @@ const saveCheckpointSchema = {
 
 export default async function checkpointRoutes(fastify: FastifyInstance): Promise<void> {
   // POST /api/checkpoint - save checkpoint (upsert per user: delete old, insert new)
-  fastify.post(
+  fastify.post<{ Body: SaveCheckpointBody }>(
     '/api/checkpoint',
     {
       preHandler: [fastify.authenticate],

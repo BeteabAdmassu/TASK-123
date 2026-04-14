@@ -49,7 +49,7 @@ done
 echo ""
 echo -e "${YELLOW}=== Running Unit Tests ===${NC}"
 UNIT_EXIT=0
-(cd "$(dirname "$0")/backend" && npm test) || UNIT_EXIT=$?
+(cd "$(dirname "$0")" && docker compose exec -T backend npm test) || UNIT_EXIT=$?
 
 # ============================================================
 # Integration tests

@@ -64,7 +64,7 @@ interface IdParam {
 
 export default async function projectRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/projects - list projects (paginated), filter by status, exclude archived
-  fastify.get(
+  fastify.get<{ Querystring: ListProjectsQuery }>(
     '/api/projects',
     {
       preHandler: [fastify.authenticate],
@@ -130,7 +130,7 @@ export default async function projectRoutes(fastify: FastifyInstance): Promise<v
   );
 
   // POST /api/projects - create project
-  fastify.post(
+  fastify.post<{ Body: CreateProjectBody }>(
     '/api/projects',
     {
       preHandler: [fastify.authorize('admin', 'recruiter')],
@@ -199,7 +199,7 @@ export default async function projectRoutes(fastify: FastifyInstance): Promise<v
   );
 
   // PUT /api/projects/:id - update project
-  fastify.put(
+  fastify.put<{ Params: IdParam; Body: UpdateProjectBody }>(
     '/api/projects/:id',
     {
       preHandler: [fastify.authorize('admin', 'recruiter')],

@@ -25,7 +25,7 @@ const listNotificationsQuerySchema = {
 
 export default async function notificationRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/notifications - list user's notifications (paginated)
-  fastify.get(
+  fastify.get<{ Querystring: ListNotificationsQuery }>(
     '/api/notifications',
     {
       preHandler: [fastify.authenticate],

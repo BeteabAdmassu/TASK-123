@@ -27,7 +27,7 @@ async function databasePlugin(fastify: FastifyInstance): Promise<void> {
     client.release();
     fastify.log.info('Database connected successfully');
   } catch (err) {
-    fastify.log.error('Database connection failed:', err);
+    fastify.log.error({ err }, 'Database connection failed');
     throw err;
   }
 

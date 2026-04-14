@@ -41,7 +41,7 @@ const savePlaybackSchema = {
 
 export default async function mediaRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/media - list media assets
-  fastify.get(
+  fastify.get<{ Querystring: ListMediaQuery }>(
     '/api/media',
     {
       preHandler: [fastify.authenticate],
@@ -174,7 +174,7 @@ export default async function mediaRoutes(fastify: FastifyInstance): Promise<voi
   );
 
   // PUT /api/media/:id/playback-state - save/update playback state (UPSERT on user_id, asset_id)
-  fastify.put(
+  fastify.put<{ Params: IdParam; Body: SavePlaybackBody }>(
     '/api/media/:id/playback-state',
     {
       preHandler: [fastify.authenticate],

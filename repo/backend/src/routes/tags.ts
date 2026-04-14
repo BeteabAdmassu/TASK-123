@@ -59,7 +59,7 @@ export default async function tagRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // POST /api/tags - create tag
-  fastify.post(
+  fastify.post<{ Body: CreateTagBody }>(
     '/api/tags',
     {
       preHandler: [fastify.authorize('recruiter', 'admin')],
@@ -99,7 +99,7 @@ export default async function tagRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // PUT /api/tags/:id - update tag
-  fastify.put(
+  fastify.put<{ Params: IdParam; Body: UpdateTagBody }>(
     '/api/tags/:id',
     {
       preHandler: [fastify.authorize('recruiter', 'admin')],

@@ -28,7 +28,7 @@ const auditQuerySchema = {
 
 export default async function auditRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/audit - query audit trail (admin only)
-  fastify.get(
+  fastify.get<{ Querystring: AuditQuery }>(
     '/api/audit',
     {
       preHandler: [fastify.authorize('admin')],

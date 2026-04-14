@@ -17,7 +17,7 @@ const searchQuerySchema = {
 
 export default async function searchRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/search?q=term - global search across entities
-  fastify.get(
+  fastify.get<{ Querystring: SearchQuery }>(
     '/api/search',
     {
       preHandler: [fastify.authenticate],

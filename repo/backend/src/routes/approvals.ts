@@ -80,7 +80,7 @@ const listApprovalsQuerySchema = {
 
 export default async function approvalRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/approvals - list approval requests
-  fastify.get(
+  fastify.get<{ Querystring: ListApprovalsQuery }>(
     '/api/approvals',
     {
       preHandler: [fastify.authenticate],

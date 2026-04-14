@@ -86,7 +86,7 @@ const updateRuleSchema = {
 
 export default async function violationRoutes(fastify: FastifyInstance): Promise<void> {
   // GET /api/violations - list violation queue (paginated, filter by status, severity)
-  fastify.get(
+  fastify.get<{ Querystring: ListViolationsQuery }>(
     '/api/violations',
     {
       preHandler: [fastify.authorize('reviewer', 'admin')],
@@ -174,7 +174,7 @@ export default async function violationRoutes(fastify: FastifyInstance): Promise
   );
 
   // POST /api/violations/rules - create rule
-  fastify.post(
+  fastify.post<{ Body: CreateRuleBody }>(
     '/api/violations/rules',
     {
       preHandler: [fastify.authorize('admin')],
@@ -204,7 +204,7 @@ export default async function violationRoutes(fastify: FastifyInstance): Promise
   );
 
   // PUT /api/violations/rules/:id - update rule
-  fastify.put(
+  fastify.put<{ Params: IdParam; Body: UpdateRuleBody }>(
     '/api/violations/rules/:id',
     {
       preHandler: [fastify.authorize('admin')],
@@ -310,7 +310,7 @@ export default async function violationRoutes(fastify: FastifyInstance): Promise
   );
 
   // PUT /api/violations/:id/review - submit review
-  fastify.put(
+  fastify.put<{ Params: IdParam; Body: ReviewBody }>(
     '/api/violations/:id/review',
     {
       preHandler: [fastify.authorize('reviewer')],

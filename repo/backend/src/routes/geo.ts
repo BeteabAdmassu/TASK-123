@@ -181,7 +181,7 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // POST /api/geo/datasets/import - import file
-  fastify.post(
+  fastify.post<{ Body: ImportBody }>(
     '/api/geo/datasets/import',
     {
       preHandler: [fastify.authenticate],
@@ -327,7 +327,7 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // GET /api/geo/datasets/:id/features - get features (paginated with cursor, bbox spatial filter)
-  fastify.get(
+  fastify.get<{ Params: IdParam; Querystring: FeaturesQuery }>(
     '/api/geo/datasets/:id/features',
     {
       preHandler: [fastify.authenticate],
@@ -401,7 +401,7 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // GET /api/geo/datasets/:id/aggregate - administrative-region aggregation
-  fastify.get(
+  fastify.get<{ Params: IdParam; Querystring: AggregateQuery }>(
     '/api/geo/datasets/:id/aggregate',
     {
       preHandler: [fastify.authenticate],
@@ -445,7 +445,7 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // GET /api/geo/datasets/:id/density - POI density analysis
-  fastify.get(
+  fastify.get<{ Params: IdParam; Querystring: DensityQuery }>(
     '/api/geo/datasets/:id/density',
     {
       preHandler: [fastify.authenticate],
@@ -493,7 +493,7 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // GET /api/geo/datasets/:id/buffer - buffer analysis around features
-  fastify.get(
+  fastify.get<{ Params: IdParam; Querystring: BufferQuery }>(
     '/api/geo/datasets/:id/buffer',
     {
       preHandler: [fastify.authenticate],
@@ -547,7 +547,7 @@ export default async function geoRoutes(fastify: FastifyInstance): Promise<void>
   );
 
   // GET /api/geo/datasets/:id/routes - route/trajectory display
-  fastify.get(
+  fastify.get<{ Params: IdParam; Querystring: RoutesQuery }>(
     '/api/geo/datasets/:id/routes',
     {
       preHandler: [fastify.authenticate],
