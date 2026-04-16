@@ -53,6 +53,19 @@ async function seed(): Promise<void> {
       ('task_overdue', 'Overdue Task', 'You have an overdue task: {{task_description}}.', 'in_app')
     `);
 
+    // Seed notification tasks for admin (required by integration tests)
+    const adminRow = await pool.query("SELECT id FROM users WHERE username = 'admin'");
+    const adminId = adminRow.rows[0].id;
+    await pool.query(`
+      INSERT INTO notification_tasks (recipient_id, type, template_key, template_vars, rendered_content, status) VALUES
+      ($1, 'in_app', 'approval_requested',
+       '{"requester": "System", "entity_type": "project", "entity_id": "seed-0001"}',
+       'You have a new approval request from System for project #seed-0001.', 'pending'),
+      ($1, 'in_app', 'task_overdue',
+       '{"task_description": "Review pending candidates"}',
+       'You have an overdue task: Review pending candidates.', 'pending')
+    `, [adminId]);
+
     await pool.query('COMMIT');
     console.log('Seed data applied successfully');
   } catch (err) {

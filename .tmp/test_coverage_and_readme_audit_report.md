@@ -256,6 +256,7 @@
 ## Test Quality & Sufficiency
 - Main success/failure/auth/validation/authorization paths are broadly covered.
 - Real E2E FE↔BE flows exist (`repo/tests/e2e/specs/auth.spec.ts`, `repo/tests/e2e/specs/projects.spec.ts`, `repo/tests/e2e/specs/rbac.spec.ts`).
+- Notification-path integration checks rely on seeded `notification_tasks` inserted in `repo/backend/src/migrations/seed.ts`.
 - Sufficiency limitations: 4 uncovered endpoints and mock-heavy lower-level backend unit tests.
 
 ## run_tests.sh Check
