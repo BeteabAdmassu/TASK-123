@@ -22,6 +22,15 @@ pass() { echo -e "${GREEN}[PASS]${NC} $1"; }
 fail() { echo -e "${RED}[FAIL]${NC} $1"; }
 
 # ============================================================
+# Ensure the stack is running
+# CI environments may stop containers between the build phase
+# and the test phase, so bring them back up idempotently.
+# Images are already built; this is a fast no-op when running.
+# ============================================================
+echo -e "${YELLOW}=== Starting services ===${NC}"
+(cd "$REPO_DIR" && docker compose up -d)
+
+# ============================================================
 # Wait for services to be healthy
 # ============================================================
 echo -e "${YELLOW}=== Waiting for services to be healthy ===${NC}"
