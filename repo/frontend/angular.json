@@ -95,6 +95,9 @@
               "zone.js/testing"
             ],
             "tsConfig": "tsconfig.spec.json",
+            "include": [
+              "../../tests/frontend/**/*.spec.ts"
+            ],
             "assets": [
               "src/assets"
             ],

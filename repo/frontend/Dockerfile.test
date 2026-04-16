@@ -1,0 +1,44 @@
+# Angular unit test runner (Karma + ChromeHeadless in Docker)
+#
+# Build context is the repo root so that the directory layout
+#   /repo/frontend/           (Angular source)
+#   /repo/shared/             (shared contracts)
+#   /repo/tests/frontend/     (spec files)
+# is preserved so that the imports in test.ts can resolve:
+#   import '../../tests/frontend/admin.component.spec'
+FROM node:18-alpine
+
+# Install Chromium for headless Karma tests
+RUN apk add --no-cache chromium
+
+# Chrome wrapper that injects --no-sandbox (required in Docker/unprivileged containers)
+RUN printf '#!/bin/sh\nexec /usr/bin/chromium --no-sandbox --disable-dev-shm-usage "$@"\n' \
+      > /usr/local/bin/chromium-no-sandbox \
+    && chmod +x /usr/local/bin/chromium-no-sandbox
+
+WORKDIR /repo
+
+# Install frontend dependencies (layer-cached)
+COPY frontend/package.json frontend/package-lock.json* ./frontend/
+RUN cd frontend && npm ci --legacy-peer-deps
+
+# Copy source trees — preserving relative structure
+COPY frontend/ ./frontend/
+COPY shared/ ./shared/
+COPY tests/frontend/ ./tests/frontend/
+
+# Symlink repo-root node_modules → frontend node_modules so TypeScript
+# can resolve @angular/* and rxjs when compiling spec files that live at
+# /repo/tests/frontend/ (TypeScript walks up the directory tree looking
+# for node_modules; it never descends into sibling dirs like /repo/frontend/).
+RUN ln -s /repo/frontend/node_modules /repo/node_modules
+
+# Point karma-chrome-launcher at the no-sandbox wrapper binary
+ENV CHROME_BIN=/usr/local/bin/chromium-no-sandbox
+ENV CI=true
+
+WORKDIR /repo/frontend
+
+# Run Karma in headless mode using the built-in ChromeHeadless launcher.
+# The wrapper script above adds --no-sandbox so Chrome runs inside Docker.
+CMD ["npx", "ng", "test", "--watch=false", "--browsers=ChromeHeadlessNoSandbox"]
